@@ -23,6 +23,8 @@ jspm_packages/
 dist/
 dist-ssr/
 *.local
+api/
+backend/bin/
 
 # Environment variables
 .env

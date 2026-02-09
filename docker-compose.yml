@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kratos-backend
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    volumes:
+      - ./backend/configs:/data/conf
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vite-frontend
+    ports:
+      - "8123:80"
+    depends_on:
+      - backend
+    restart: always

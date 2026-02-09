@@ -1,0 +1,12 @@
+version: v1
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/go-kratos/kratos
+  - buf.build/envoyproxy/protoc-gen-validate
+  - buf.build/gnostic/gnostic
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE

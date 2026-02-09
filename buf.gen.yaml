@@ -1,0 +1,13 @@
+version: v1
+plugins:
+  - name: go
+    out: .
+  - name: go-grpc
+    out: .
+  - name: go-http
+    out: .
+  - name: openapi
+    out: .
+    opt:
+      - fq_schema_naming=true
+      - default_response=false
