@@ -72,6 +72,44 @@ function Lissajous(): React.JSX.Element {
   );
 }
 
+interface Article {
+  title: string;
+  content: string;
+}
+
+function ArticleList() {
+  const [articles, setArticles] = React.useState<Article[]>([]);
+
+  useEffect(() => {
+    fetch('/articles')
+      .then(res => res.json())
+      .then(data => {
+          if (data.articles) {
+              setArticles(data.articles);
+          }
+      })
+      .catch(err => console.error(err));
+  }, []);
+
+  return (
+    <div style={{ marginTop: '20px', borderTop: '1px solid #ccc', paddingTop: '20px' }}>
+      <h3>Article List</h3>
+      {articles.length === 0 ? (
+        <p>No articles found.</p>
+      ) : (
+        <ul style={{ listStyleType: 'none', padding: 0 }}>
+          {articles.map((article, index) => (
+            <li key={index} style={{ marginBottom: '15px', border: '1px solid #eee', padding: '10px' }}>
+              <h4 style={{ margin: '0 0 5px 0' }}>{article.title}</h4>
+              <pre style={{ whiteSpace: 'pre-wrap', backgroundColor: '#f5f5f5', padding: '5px' }}>{article.content}</pre>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function Profile(): React.JSX.Element {
   return (
     <>
@@ -86,6 +124,7 @@ export default function Profile(): React.JSX.Element {
         }}
       />
       <Lissajous />
+      <ArticleList />
     </>
   );
 }

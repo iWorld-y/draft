@@ -17,6 +17,13 @@ service Greeter {
       get: "/helloworld/{name}"
     };
   }
+
+  // Lists articles
+  rpc ListArticles (ListArticlesRequest) returns (ListArticlesReply) {
+    option (google.api.http) = {
+      get: "/articles"
+    };
+  }
 }
 
 // The request message containing the user's name.
@@ -27,4 +34,15 @@ message HelloRequest {
 // The response message containing the greetings
 message HelloReply {
   string message = 1;
+}
+
+message ListArticlesRequest {}
+
+message ListArticlesReply {
+  repeated Article articles = 1;
+}
+
+message Article {
+  string title = 1;
+  string content = 2;
 }
