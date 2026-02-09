@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"backend/internal/biz/entity"
 	"backend/internal/biz/repo"
@@ -60,7 +61,7 @@ func (r *greeterRepo) ListArticles(ctx context.Context) ([]*entity.Article, erro
 	}
 	var articles []*entity.Article
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
 			content, err := os.ReadFile(filepath.Join(dir, entry.Name()))
 			if err != nil {
 				continue
