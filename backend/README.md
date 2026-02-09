@@ -49,5 +49,5 @@ wire
 docker build -t <your-docker-image-name> .
 
 # 运行容器
-docker run --rm -p 8000:8000 -p 9000:9000 -v </path/to/your/configs>:/data/conf <your-docker-image-name>
+docker run --rm -p 8124:8124 -p 8125:8125 -v </path/to/your/configs>:/data/conf <your-docker-image-name>
 ```

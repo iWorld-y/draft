@@ -68,7 +68,7 @@ deploy:
 run:
 	make build
 	make deploy
-	docker run --rm -p 8124:8000 -p 8125:9000 -v $(PWD)/configs:/data/conf draft-backend
+	docker run --rm -p 8124:8124 -p 8125:8125 -v $(PWD)/configs:/data/conf draft-backend
 
 # 显示帮助信息
 help:
