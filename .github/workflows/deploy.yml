@@ -1,0 +1,97 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}/backend
+  FRONTEND_IMAGE: ${{ github.repository }}/frontend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "DEPLOY_VERSION=$VERSION" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_VERSION=latest" >> $GITHUB_ENV
+          fi
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ==========================================
+      # 以下为示例部署步骤，请根据实际情况修改
+      # ==========================================
+      
+      # 方案 1: SSH 部署到服务器（需要配置 SSH 密钥）
+      # - name: Deploy via SSH
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USERNAME }}
+      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     script: |
+      #       cd /path/to/app
+      #       docker-compose pull
+      #       docker-compose up -d
+
+      # 方案 2: 使用 Docker Compose 部署
+      # - name: Copy compose file to server
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USERNAME }}
+      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     source: "docker-compose.yml"
+      #     target: "/path/to/app/"
+
+      # 方案 3: Kubernetes 部署
+      # - name: Setup kubectl
+      #   uses: azure/setup-kubectl@v4
+      #   with:
+      #     version: 'v1.29.0'
+      #
+      # - name: Configure kubeconfig
+      #   run: |
+      #     echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
+      #     export KUBECONFIG=kubeconfig
+      #
+      # - name: Deploy to Kubernetes
+      #   run: |
+      #     kubectl set image deployment/backend backend=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
+      #     kubectl set image deployment/frontend frontend=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
+      #     kubectl rollout status deployment/backend
+      #     kubectl rollout status deployment/frontend
+
+      - name: Deployment Summary
+        run: |
+          echo "🚀 部署完成！"
+          echo "后端镜像: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
+          echo "前端镜像: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
+          echo "环境: ${{ github.event.inputs.environment || 'production' }}"
