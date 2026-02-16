@@ -1,4 +1,23 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: vocabulary-postgres
+    environment:
+      POSTGRES_USER: vocabulary
+      POSTGRES_PASSWORD: vocabulary123
+      POSTGRES_DB: vocabulary
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vocabulary -d vocabulary"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -9,6 +28,11 @@ services:
       - "9000:9000"
     volumes:
       - ./backend/configs:/data/conf
+    environment:
+      - DATABASE_URL=postgres://vocabulary:vocabulary123@postgres:5432/vocabulary?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: always
 
   frontend:
@@ -21,3 +45,6 @@ services:
     depends_on:
       - backend
     restart: always
+
+volumes:
+  postgres_data:
