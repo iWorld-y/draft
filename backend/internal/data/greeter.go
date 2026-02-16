@@ -54,7 +54,7 @@ func (r *greeterRepo) ListAll(context.Context) ([]*entity.Greeter, error) {
 }
 
 func (r *greeterRepo) ListArticles(ctx context.Context) ([]*entity.Article, error) {
-	dir := "../docs/"
+	dir := "../../docs/"
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
