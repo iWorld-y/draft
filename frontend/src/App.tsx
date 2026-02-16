@@ -1,130 +1,94 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import Dashboard from './pages/Dashboard';
+import DictionaryUpload from './pages/DictionaryUpload';
+import Learning from './pages/Learning';
+import './styles/global.css';
 
-interface User {
-  name: string;
-  imageUrl: string;
-  imageSize: number;
-}
+type Page = 'dashboard' | 'upload' | 'learn';
 
-const user: User = {
-  name: 'Hedy Lamarr',
-  imageUrl: 'https://i.imgur.com/yXOvdOSs.jpg',
-  imageSize: 90,
-};
-
-function Lissajous(): React.JSX.Element {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const App: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [dictId, setDictId] = useState<number>(1);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const cycles = 5;
-    const res = 0.001;
-    const size = 100;
-    const nframes = 64;
-    const delay = 80; // 8 * 10ms
-    const freq = Math.random() * 3.0;
-    let phase = 0.0;
-    let frame = 0;
-    let lastTime = 0;
-    let requestId: number;
-
-    const render = (time: number) => {
-      if (time - lastTime >= delay) {
-        lastTime = time;
-
-        // Clear canvas
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, 2 * size + 1, 2 * size + 1);
-
-        // Draw Lissajous
-        ctx.fillStyle = 'black';
-        for (let t = 0.0; t < cycles * 2 * Math.PI; t += res) {
-          const x = Math.sin(t);
-          const y = Math.sin(t * freq + phase);
-          // Set pixel (using fillRect as a proxy for SetColorIndex)
-          ctx.fillRect(size + x * size, size + y * size, 1, 1);
-        }
-
-        phase += 0.1;
-        frame = (frame + 1) % nframes;
+    const path = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
+    
+    if (path === '/upload') {
+      setCurrentPage('upload');
+    } else if (path === '/learn') {
+      setCurrentPage('learn');
+      const id = searchParams.get('dictId');
+      if (id) {
+        setDictId(parseInt(id, 10));
       }
-      requestId = requestAnimationFrame(render);
+    } else {
+      setCurrentPage('dashboard');
+    }
+  }, []);
+
+  const navigateTo = (page: Page, params?: { dictId?: number }) => {
+    setCurrentPage(page);
+    if (params?.dictId) {
+      setDictId(params.dictId);
+    }
+    
+    // Update URL
+    let url = '/';
+    if (page === 'upload') {
+      url = '/upload';
+    } else if (page === 'learn') {
+      url = params?.dictId ? `/learn?dictId=${params.dictId}` : '/learn';
+    }
+    window.history.pushState({}, '', url);
+  };
+
+  // Override window.location for navigation
+  useEffect(() => {
+    const originalHref = window.location.href;
+    
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      
+      if (anchor) {
+        const href = anchor.getAttribute('href');
+        if (href && href.startsWith('/')) {
+          e.preventDefault();
+          if (href === '/upload') {
+            navigateTo('upload');
+          } else if (href.startsWith('/learn')) {
+            const url = new URL(href, window.location.origin);
+            const dictId = url.searchParams.get('dictId');
+            navigateTo('learn', { dictId: dictId ? parseInt(dictId, 10) : 1 });
+          } else {
+            navigateTo('dashboard');
+          }
+        }
+      }
     };
 
-    requestId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(requestId);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
   }, []);
 
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'upload':
+        return <DictionaryUpload />;
+      case 'learn':
+        return <Learning dictId={dictId} />;
+      case 'dashboard':
+      default:
+        return <Dashboard />;
+    }
+  };
+
   return (
-    <div style={{ marginTop: '20px' }}>
-      <h3>Lissajous Animation</h3>
-      <canvas
-        ref={canvasRef}
-        width={201}
-        height={201}
-        style={{ border: '1px solid #ccc' }}
-      />
+    <div className="app">
+      {renderPage()}
     </div>
   );
-}
+};
 
-interface Article {
-  title: string;
-  content: string;
-}
-
-function ArticleList() {
-  const [articles, setArticles] = React.useState<Article[]>([]);
-
-  useEffect(() => {
-    fetch('/articles')
-      .then(res => res.json())
-      .then(data => {
-          if (data.articles) {
-              setArticles(data.articles);
-          }
-      })
-      .catch(err => console.error(err));
-  }, []);
-
-  return (
-    <div style={{ marginTop: '20px', borderTop: '1px solid #ccc', paddingTop: '20px' }}>
-      <h3>Article List</h3>
-      {articles.length === 0 ? (
-        <p>No articles found.</p>
-      ) : (
-        <ul style={{ listStyleType: 'none', padding: 0 }}>
-          {articles.map((article, index) => (
-            <li key={index} style={{ marginBottom: '15px', border: '1px solid #eee', padding: '10px' }}>
-              <h4 style={{ margin: '0 0 5px 0' }}>{article.title}</h4>
-              <pre style={{ whiteSpace: 'pre-wrap', backgroundColor: '#f5f5f5', padding: '5px' }}>{article.content}</pre>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-export default function Profile(): React.JSX.Element {
-  return (
-    <>
-      <h1>{user.name}</h1>
-      <img
-        className="avatar"
-        src={user.imageUrl}
-        alt={'Photo of ' + user.name}
-        style={{
-          width: user.imageSize,
-          height: user.imageSize
-        }}
-      />
-      <Lissajous />
-      <ArticleList />
-    </>
-  );
-}
+export default App;
