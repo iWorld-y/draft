@@ -15,7 +15,7 @@ const Dashboard: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await getDictionaries();
-      const dicts = response.data;
+      const dicts: Dictionary[] = Array.isArray(response.data) ? response.data : [];
       setDictionaries(dicts);
       
       const totalWords = dicts.reduce((sum, d) => sum + d.word_count, 0);
