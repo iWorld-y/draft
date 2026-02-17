@@ -2,8 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/main ./internal/cmd/backend"
-bin = "./tmp/main -conf ./configs"
+cmd = "go build -o ./bin/main ./internal/cmd/backend"
+bin = "./bin/main -conf ./configs"
 include_ext = ["go", "yaml"]
 exclude_dir = ["tmp", "bin", "docs"]
 stop_on_error = true

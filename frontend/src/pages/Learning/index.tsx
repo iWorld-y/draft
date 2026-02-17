@@ -37,12 +37,17 @@ const Learning: React.FC<LearningPageProps> = ({ dictId = 1 }) => {
   };
 
   if (isFinished) {
+    const isEmptyTask = progress.total === 0;
     return (
       <div className="learning-page">
         <div className="completion-card">
           <div className="completion-icon">🎉</div>
-          <h2>恭喜完成今日学习！</h2>
-          <p>你已经完成了 {progress.total} 个单词的学习</p>
+          <h2>{isEmptyTask ? '当前词典暂无可学习单词' : '恭喜完成今日学习！'}</h2>
+          <p>
+            {isEmptyTask
+              ? '请先上传包含可识别英文单词的词典，或稍后再试。'
+              : `你已经完成了 ${progress.total} 个单词的学习`}
+          </p>
           <div className="completion-actions">
             <button className="primary-button" onClick={handleRestart}>
               再来一组

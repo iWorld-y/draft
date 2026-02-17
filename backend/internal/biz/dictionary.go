@@ -12,6 +12,12 @@ import (
 	"backend/internal/biz/entity"
 	"backend/internal/biz/repo"
 	"backend/pkg/translator"
+
+	kerrors "github.com/go-kratos/kratos/v2/errors"
+)
+
+var (
+	ErrEmptyWordFile = kerrors.BadRequest("EMPTY_WORD_FILE", "文件中没有可导入的单词")
 )
 
 // DictionaryUseCase 词典业务逻辑
@@ -96,7 +102,7 @@ func (uc *DictionaryUseCase) UploadDictionary(ctx context.Context, reader io.Rea
 	}
 
 	// 4. 启动异步任务处理
-	go uc.processUploadTask(taskID, dict.ID, words)
+	go uc.processUploadTask(taskID, dict.ID, userID, words)
 
 	return &UploadTaskResult{
 		TaskID:         taskID,
@@ -119,11 +125,14 @@ func (uc *DictionaryUseCase) parseWordFile(reader io.Reader) ([]string, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
+	if len(words) == 0 {
+		return nil, ErrEmptyWordFile
+	}
 	return words, nil
 }
 
 // processUploadTask 异步处理上传任务
-func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID int64, words []string) {
+func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int64, words []string) {
 	ctx := context.Background()
 	total := len(words)
 
@@ -131,16 +140,36 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID int64, word
 	semaphore := make(chan struct{}, 5)
 	done := make(chan bool, total)
 
-	for i, wordStr := range words {
+	for _, wordStr := range words {
 		semaphore <- struct{}{} // 获取信号量
 
-		go func(idx int, w string) {
+		go func(w string) {
 			defer func() { <-semaphore }() // 释放信号量
 
 			// 检查是否已存在
 			existing, _ := uc.wordRepo.GetByDictIDAndWord(ctx, dictID, w)
 			if existing != nil {
 				// 已存在，跳过
+				uc.taskRepo.IncrementProcessed(ctx, taskID, 1)
+				done <- true
+				return
+			}
+
+			// 跨词典复用：若该用户库内已有该词，直接复用释义并跳过 API 请求
+			cachedWord, _ := uc.wordRepo.GetByUserAndWord(ctx, userID, w)
+			if cachedWord != nil {
+				word := &entity.Word{
+					DictID:   dictID,
+					Word:     w,
+					Phonetic: cachedWord.Phonetic,
+					Meaning:  cachedWord.Meaning,
+					Example:  cachedWord.Example,
+					AudioURL: cachedWord.AudioURL,
+					Status:   "new",
+				}
+				if err := uc.wordRepo.Create(ctx, word); err != nil {
+					uc.taskRepo.AddFailedWord(ctx, taskID, w)
+				}
 				uc.taskRepo.IncrementProcessed(ctx, taskID, 1)
 				done <- true
 				return
@@ -175,7 +204,7 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID int64, word
 			// 速率限制：防止 API 限流
 			time.Sleep(100 * time.Millisecond)
 			done <- true
-		}(i, wordStr)
+		}(wordStr)
 	}
 
 	// 等待所有任务完成
@@ -186,7 +215,12 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID int64, word
 	// 更新任务状态为完成
 	task, _ := uc.taskRepo.GetByID(ctx, taskID)
 	if task != nil {
-		task.Status = "completed"
+		// 若全部处理都失败，则标记任务失败，避免前端误判“成功”
+		if total > 0 && len(task.FailedWords) >= total {
+			task.Status = "failed"
+		} else {
+			task.Status = "completed"
+		}
 		now := time.Now()
 		task.CompletedAt = &now
 		uc.taskRepo.Update(ctx, task)

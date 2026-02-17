@@ -37,6 +37,8 @@ type WordRepo interface {
 	GetByIDForUser(ctx context.Context, id, userID int64) (*entity.Word, error)
 	// GetByDictIDAndWord 根据词典 ID 和单词获取
 	GetByDictIDAndWord(ctx context.Context, dictID int64, word string) (*entity.Word, error)
+	// GetByUserAndWord 根据用户和单词获取（跨词典复用）
+	GetByUserAndWord(ctx context.Context, userID int64, word string) (*entity.Word, error)
 	// ListByDictID 获取词典的单词列表
 	ListByDictID(ctx context.Context, dictID int64, offset, limit int) ([]*entity.Word, error)
 	// CountByDictID 统计词典单词数

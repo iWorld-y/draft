@@ -40,7 +40,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	dictionaryRepo := data.NewDictionaryRepo(dataData, logger)
 	wordRepo := data.NewWordRepo(dataData, logger)
 	uploadTaskRepo := data.NewUploadTaskRepo(dataData, logger)
-	translatorImpl := translator.NewYoudaoTranslator("", "")
+	translatorImpl := translator.NewFreeDictionaryTranslator("")
 	dictionaryUseCase := biz.NewDictionaryUseCase(dictionaryRepo, wordRepo, uploadTaskRepo, translatorImpl)
 	dictionaryService := service.NewDictionaryService(dictionaryUseCase, logger)
 

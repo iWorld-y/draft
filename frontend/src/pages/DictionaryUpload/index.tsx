@@ -26,7 +26,16 @@ const DictionaryUpload: React.FC = () => {
       try {
         const response = await getUploadStatus(taskId);
         const task = response.data;
-        setUploadTask(task);
+        const failedCount = task.failed_words?.length ?? 0;
+        const failedPreview = (task.failed_words || []).slice(0, 5).join(', ');
+        const message =
+          task.status === 'failed'
+            ? `导入失败：${failedCount} 个词未成功解析。${failedPreview ? `示例：${failedPreview}` : ''}`
+            : undefined;
+        setUploadTask({
+          ...task,
+          message,
+        });
         
         if (task.status === 'completed' || task.status === 'failed') {
           stopPolling();
@@ -63,7 +72,8 @@ const DictionaryUpload: React.FC = () => {
       startPolling(task_id);
     } catch (error) {
       console.error('Upload failed:', error);
-      alert('上传失败，请重试');
+      const message = error instanceof Error ? error.message : '上传失败，请重试';
+      alert(message);
     } finally {
       setIsUploading(false);
     }

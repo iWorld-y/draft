@@ -3,6 +3,7 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -270,6 +271,33 @@ func (r *wordRepo) GetByDictIDAndWord(ctx context.Context, dictID int64, wordStr
 		&word.NextReviewDate, &word.LastReviewDate, &word.CreatedAt, &word.UpdatedAt,
 	)
 	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(meaningJSON, &word.Meaning)
+	return word, nil
+}
+
+// GetByUserAndWord 根据用户和单词获取（跨词典复用）
+func (r *wordRepo) GetByUserAndWord(ctx context.Context, userID int64, wordStr string) (*entity.Word, error) {
+	query := `
+		SELECT w.id, w.dict_id, w.word, w.phonetic, w.meaning, w.example, w.audio_url, w.status, w.ef_factor, w.interval, w.repetitions, w.next_review_date, w.last_review_date, w.created_at, w.updated_at
+		FROM words w
+		INNER JOIN dictionaries d ON d.id = w.dict_id
+		WHERE d.user_id = $1 AND d.deleted_at IS NULL AND w.word = $2
+		ORDER BY w.id ASC
+		LIMIT 1
+	`
+	word := &entity.Word{}
+	var meaningJSON []byte
+	err := r.data.db.QueryRowContext(ctx, query, userID, wordStr).Scan(
+		&word.ID, &word.DictID, &word.Word, &word.Phonetic, &meaningJSON, &word.Example,
+		&word.AudioURL, &word.Status, &word.EFFactor, &word.Interval, &word.Repetitions,
+		&word.NextReviewDate, &word.LastReviewDate, &word.CreatedAt, &word.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	json.Unmarshal(meaningJSON, &word.Meaning)

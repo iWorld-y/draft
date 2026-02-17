@@ -3,7 +3,10 @@ import request from './request';
 export interface Dictionary {
   id: number;
   name: string;
-  word_count: number;
+  total_words: number;
+  learned_words: number;
+  progress: number;
+  description: string;
   created_at: string;
 }
 
@@ -11,6 +14,9 @@ export interface UploadTask {
   task_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
+  total?: number;
+  processed?: number;
+  failed_words?: string[];
   message?: string;
 }
 
@@ -32,7 +38,7 @@ export const getUploadStatus = (taskId: string): Promise<{ data: UploadTask }> =
 };
 
 // Get dictionary list
-export const getDictionaries = (): Promise<{ data: Dictionary[] }> => {
+export const getDictionaries = (): Promise<{ data: { items: Dictionary[] } }> => {
   return request.get('/dictionaries');
 };
 

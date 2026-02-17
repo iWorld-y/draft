@@ -15,10 +15,10 @@ const Dashboard: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await getDictionaries();
-      const dicts: Dictionary[] = Array.isArray(response.data) ? response.data : [];
+      const dicts: Dictionary[] = Array.isArray(response.data?.items) ? response.data.items : [];
       setDictionaries(dicts);
       
-      const totalWords = dicts.reduce((sum, d) => sum + d.word_count, 0);
+      const totalWords = dicts.reduce((sum, d) => sum + d.total_words, 0);
       setStats({
         totalWords,
         dictCount: dicts.length
@@ -100,7 +100,7 @@ const Dashboard: React.FC = () => {
                 <div className="dict-info">
                   <h3 className="dict-name">{dict.name}</h3>
                   <div className="dict-meta">
-                    <span className="word-count">{dict.word_count} 词</span>
+                    <span className="word-count">{dict.total_words} 词</span>
                     <span className="created-at">创建于 {formatDate(dict.created_at)}</span>
                   </div>
                 </div>

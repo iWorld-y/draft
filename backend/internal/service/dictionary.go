@@ -10,6 +10,7 @@ import (
 	authctx "backend/internal/auth"
 	"backend/internal/biz"
 
+	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport/http"
 )
@@ -130,12 +131,14 @@ func (s *DictionaryService) UploadDictionary(ctx context.Context) (*UploadDictio
 
 	// 解析 multipart form
 	if err := httpCtx.ParseMultipartForm(32 << 20); err != nil { // 32MB max
-		return nil, fmt.Errorf("failed to parse form: %w", err)
+		s.log.Warnf("upload dictionary parse multipart failed: %v", err)
+		return nil, kerrors.BadRequest("INVALID_MULTIPART_FORM", "上传请求格式错误，请使用 multipart/form-data")
 	}
 
 	file, _, err := httpCtx.FormFile("file")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file: %w", err)
+		s.log.Warnf("upload dictionary missing file field: %v", err)
+		return nil, kerrors.BadRequest("MISSING_UPLOAD_FILE", "缺少上传文件字段 file")
 	}
 	defer file.Close()
 
@@ -148,7 +151,11 @@ func (s *DictionaryService) UploadDictionary(ctx context.Context) (*UploadDictio
 	// 读取文件内容
 	content, err := io.ReadAll(file)
 	if err != nil {
+		s.log.Errorf("upload dictionary read file failed: %v", err)
 		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	if len(content) == 0 {
+		return nil, kerrors.BadRequest("EMPTY_UPLOAD_FILE", "上传文件为空")
 	}
 
 	userID, ok := authctx.UserIDFromContext(ctx)
@@ -157,6 +164,7 @@ func (s *DictionaryService) UploadDictionary(ctx context.Context) (*UploadDictio
 	}
 	result, err := s.uc.UploadDictionary(ctx, bytes.NewReader(content), name, description, userID)
 	if err != nil {
+		s.log.Warnf("upload dictionary failed, user_id=%d name=%q: %v", userID, name, err)
 		return nil, err
 	}
 

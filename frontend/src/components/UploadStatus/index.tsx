@@ -7,6 +7,8 @@ interface UploadStatusProps {
 }
 
 const UploadStatus: React.FC<UploadStatusProps> = ({ task }) => {
+  const failedCount = task.failed_words?.length ?? 0;
+
   const getStatusText = () => {
     switch (task.status) {
       case 'pending':
@@ -14,7 +16,7 @@ const UploadStatus: React.FC<UploadStatusProps> = ({ task }) => {
       case 'processing':
         return '正在处理...';
       case 'completed':
-        return '处理完成！';
+        return failedCount > 0 ? '处理完成（部分失败）' : '处理完成！';
       case 'failed':
         return '处理失败';
       default:
