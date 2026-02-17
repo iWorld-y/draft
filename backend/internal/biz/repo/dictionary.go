@@ -21,6 +21,8 @@ type DictionaryRepo interface {
 	Delete(ctx context.Context, id int64) error
 	// UpdateStats 更新词典统计信息
 	UpdateStats(ctx context.Context, id int64, totalWords, learnedWords int) error
+	// IsOwnedByUser 判断词典是否属于该用户
+	IsOwnedByUser(ctx context.Context, dictID, userID int64) (bool, error)
 }
 
 // WordRepo 单词仓库接口
@@ -31,6 +33,8 @@ type WordRepo interface {
 	CreateBatch(ctx context.Context, words []*entity.Word) error
 	// GetByID 根据 ID 获取单词
 	GetByID(ctx context.Context, id int64) (*entity.Word, error)
+	// GetByIDForUser 根据用户归属获取单词
+	GetByIDForUser(ctx context.Context, id, userID int64) (*entity.Word, error)
 	// GetByDictIDAndWord 根据词典 ID 和单词获取
 	GetByDictIDAndWord(ctx context.Context, dictID int64, word string) (*entity.Word, error)
 	// ListByDictID 获取词典的单词列表

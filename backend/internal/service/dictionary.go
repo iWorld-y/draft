@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 
+	authctx "backend/internal/auth"
 	"backend/internal/biz"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -44,8 +45,11 @@ type CreateDictionaryResponse struct {
 
 // CreateDictionary 创建词典
 func (s *DictionaryService) CreateDictionary(ctx context.Context, req *CreateDictionaryRequest) (*CreateDictionaryResponse, error) {
-	// 暂时硬编码用户 ID 为 1
-	dict, err := s.uc.CreateDictionary(ctx, req.Name, req.Description, 1)
+	userID, ok := authctx.UserIDFromContext(ctx)
+	if !ok || userID <= 0 {
+		return nil, biz.ErrUnauthorized
+	}
+	dict, err := s.uc.CreateDictionary(ctx, req.Name, req.Description, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +81,11 @@ type DictionaryItem struct {
 
 // ListDictionaries 获取词典列表
 func (s *DictionaryService) ListDictionaries(ctx context.Context) (*ListDictionariesResponse, error) {
-	dicts, err := s.uc.ListDictionaries(ctx, 1)
+	userID, ok := authctx.UserIDFromContext(ctx)
+	if !ok || userID <= 0 {
+		return nil, biz.ErrUnauthorized
+	}
+	dicts, err := s.uc.ListDictionaries(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +151,11 @@ func (s *DictionaryService) UploadDictionary(ctx context.Context) (*UploadDictio
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	result, err := s.uc.UploadDictionary(ctx, bytes.NewReader(content), name, description, 1)
+	userID, ok := authctx.UserIDFromContext(ctx)
+	if !ok || userID <= 0 {
+		return nil, biz.ErrUnauthorized
+	}
+	result, err := s.uc.UploadDictionary(ctx, bytes.NewReader(content), name, description, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +185,11 @@ type GetUploadStatusResponse struct {
 
 // GetUploadStatus 获取上传任务状态
 func (s *DictionaryService) GetUploadStatus(ctx context.Context, req *GetUploadStatusRequest) (*GetUploadStatusResponse, error) {
-	task, err := s.uc.GetUploadStatus(ctx, req.TaskID)
+	userID, ok := authctx.UserIDFromContext(ctx)
+	if !ok || userID <= 0 {
+		return nil, biz.ErrUnauthorized
+	}
+	task, err := s.uc.GetUploadStatus(ctx, req.TaskID, userID)
 	if err != nil {
 		return nil, err
 	}

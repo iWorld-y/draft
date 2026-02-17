@@ -10,6 +10,7 @@ var ProviderSet = wire.NewSet(
 	NewGreeterUsecase,
 	NewDictionaryUseCase,
 	NewLearningUseCase,
+	NewAuthUseCase,
 	ProvideTranslator,
 )
 

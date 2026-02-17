@@ -198,6 +198,21 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID int64, word
 }
 
 // GetUploadStatus 获取上传任务状态
-func (uc *DictionaryUseCase) GetUploadStatus(ctx context.Context, taskID string) (*entity.UploadTask, error) {
-	return uc.taskRepo.GetByID(ctx, taskID)
+func (uc *DictionaryUseCase) GetUploadStatus(ctx context.Context, taskID string, userID int64) (*entity.UploadTask, error) {
+	task, err := uc.taskRepo.GetByID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if task == nil || task.DictID == nil {
+		return nil, ErrUnauthorized
+	}
+
+	dict, err := uc.dictRepo.GetByID(ctx, *task.DictID)
+	if err != nil {
+		return nil, err
+	}
+	if dict == nil || dict.UserID != userID {
+		return nil, ErrUnauthorized
+	}
+	return task, nil
 }

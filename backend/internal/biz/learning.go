@@ -39,7 +39,15 @@ type TodayTasksResult struct {
 }
 
 // GetTodayTasks 获取今日学习任务
-func (uc *LearningUseCase) GetTodayTasks(ctx context.Context, dictID int64, limit int) (*TodayTasksResult, error) {
+func (uc *LearningUseCase) GetTodayTasks(ctx context.Context, userID, dictID int64, limit int) (*TodayTasksResult, error) {
+	owned, err := uc.dictRepo.IsOwnedByUser(ctx, dictID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify dictionary ownership: %w", err)
+	}
+	if !owned {
+		return nil, ErrUnauthorized
+	}
+
 	// 1. 获取今日待复习数
 	reviewCount, err := uc.wordRepo.CountReviewToday(ctx, dictID)
 	if err != nil {
@@ -75,11 +83,14 @@ type SubmitResult struct {
 }
 
 // SubmitLearning 提交学习结果
-func (uc *LearningUseCase) SubmitLearning(ctx context.Context, wordID int64, quality, timeSpent int) (*SubmitResult, error) {
+func (uc *LearningUseCase) SubmitLearning(ctx context.Context, userID, wordID int64, quality, timeSpent int) (*SubmitResult, error) {
 	// 1. 查询单词当前状态
-	word, err := uc.wordRepo.GetByID(ctx, wordID)
+	word, err := uc.wordRepo.GetByIDForUser(ctx, wordID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get word: %w", err)
+	}
+	if word == nil {
+		return nil, ErrUnauthorized
 	}
 
 	// 2. 记录学习前的状态

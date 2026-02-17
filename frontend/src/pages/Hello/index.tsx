@@ -18,14 +18,15 @@ const Hello: React.FC<HelloPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       let user: AuthUser;
       if (mode === 'register') {
-        register(username, password);
+        user = await register(username, password);
+      } else {
+        user = await login(username, password);
       }
-      user = login(username, password);
       onLoginSuccess(user);
     } catch (err) {
       const message = err instanceof Error ? err.message : '操作失败，请重试';
@@ -100,4 +101,3 @@ const Hello: React.FC<HelloPageProps> = ({ onLoginSuccess }) => {
 };
 
 export default Hello;
-

@@ -9,7 +9,7 @@ const DictionaryUpload: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadTask, setUploadTask] = useState<UploadTask | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stopPolling = useCallback(() => {

@@ -3,7 +3,13 @@ import Dashboard from './pages/Dashboard';
 import DictionaryUpload from './pages/DictionaryUpload';
 import Learning from './pages/Learning';
 import Hello from './pages/Hello';
-import { getCurrentUser, logout, type AuthUser } from './services/auth';
+import {
+  clearAuth,
+  fetchCurrentUser,
+  getCurrentUser,
+  logout,
+  type AuthUser,
+} from './services/auth';
 import './styles/global.css';
 
 type Page = 'hello' | 'dashboard' | 'upload' | 'learn';
@@ -38,13 +44,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const syncRouteFromLocation = () => {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
+      const cachedUser = getCurrentUser();
+      setUser(cachedUser);
 
       const path = window.location.pathname;
       const searchParams = new URLSearchParams(window.location.search);
       const targetPage = getPageFromPath(path);
-      const finalPage = guardPage(targetPage, currentUser);
+      const finalPage = guardPage(targetPage, cachedUser);
 
       if (finalPage === 'learn') {
         const id = searchParams.get('dictId');
@@ -62,6 +68,16 @@ const App: React.FC = () => {
     };
 
     syncRouteFromLocation();
+    fetchCurrentUser()
+      .then((freshUser) => {
+        setUser(freshUser);
+      })
+      .catch(() => {
+        clearAuth();
+        setUser(null);
+        setCurrentPage('hello');
+        window.history.replaceState({}, '', '/hello');
+      });
     window.addEventListener('popstate', syncRouteFromLocation);
     return () => window.removeEventListener('popstate', syncRouteFromLocation);
   }, []);
@@ -131,8 +147,8 @@ const App: React.FC = () => {
     navigateTo('dashboard', undefined, true, loggedInUser);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setUser(null);
     navigateTo('hello', undefined, true, null);
   };

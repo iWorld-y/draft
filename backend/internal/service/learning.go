@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strconv"
 
+	authctx "backend/internal/auth"
 	"backend/internal/biz"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -63,6 +64,11 @@ type TodayTasksResponse struct {
 
 // GetTodayTasks 获取今日学习任务
 func (s *LearningService) GetTodayTasks(ctx context.Context, req *TodayTasksRequest) (*TodayTasksResponse, error) {
+	userID, ok := authctx.UserIDFromContext(ctx)
+	if !ok || userID <= 0 {
+		return nil, biz.ErrUnauthorized
+	}
+
 	dictID, err := strconv.ParseInt(req.DictID, 10, 64)
 	if err != nil {
 		return nil, err
@@ -75,7 +81,7 @@ func (s *LearningService) GetTodayTasks(ctx context.Context, req *TodayTasksRequ
 		}
 	}
 
-	result, err := s.uc.GetTodayTasks(ctx, dictID, limit)
+	result, err := s.uc.GetTodayTasks(ctx, userID, dictID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +130,11 @@ type SubmitLearningResponse struct {
 
 // SubmitLearning 提交学习结果
 func (s *LearningService) SubmitLearning(ctx context.Context, req *SubmitLearningRequest) (*SubmitLearningResponse, error) {
+	userID, ok := authctx.UserIDFromContext(ctx)
+	if !ok || userID <= 0 {
+		return nil, biz.ErrUnauthorized
+	}
+
 	wordID, err := strconv.ParseInt(req.WordID, 10, 64)
 	if err != nil {
 		return nil, err
@@ -139,7 +150,7 @@ func (s *LearningService) SubmitLearning(ctx context.Context, req *SubmitLearnin
 		timeSpent, _ = strconv.Atoi(req.TimeSpent)
 	}
 
-	result, err := s.uc.SubmitLearning(ctx, wordID, quality, timeSpent)
+	result, err := s.uc.SubmitLearning(ctx, userID, wordID, quality, timeSpent)
 	if err != nil {
 		return nil, err
 	}

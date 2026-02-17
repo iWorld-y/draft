@@ -145,6 +145,20 @@ func (r *dictionaryRepo) UpdateStats(ctx context.Context, id int64, totalWords, 
 	return nil
 }
 
+// IsOwnedByUser 判断词典是否属于该用户
+func (r *dictionaryRepo) IsOwnedByUser(ctx context.Context, dictID, userID int64) (bool, error) {
+	query := `
+		SELECT COUNT(1)
+		FROM dictionaries
+		WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+	`
+	var count int
+	if err := r.data.db.QueryRowContext(ctx, query, dictID, userID).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // wordRepo 单词仓库实现
 type wordRepo struct {
 	data *Data
@@ -213,6 +227,28 @@ func (r *wordRepo) GetByID(ctx context.Context, id int64) (*entity.Word, error) 
 	)
 	if err != nil {
 		r.log.Errorf("failed to get word: %v", err)
+		return nil, err
+	}
+	json.Unmarshal(meaningJSON, &word.Meaning)
+	return word, nil
+}
+
+// GetByIDForUser 根据用户归属获取单词
+func (r *wordRepo) GetByIDForUser(ctx context.Context, id, userID int64) (*entity.Word, error) {
+	query := `
+		SELECT w.id, w.dict_id, w.word, w.phonetic, w.meaning, w.example, w.audio_url, w.status, w.ef_factor, w.interval, w.repetitions, w.next_review_date, w.last_review_date, w.created_at, w.updated_at
+		FROM words w
+		INNER JOIN dictionaries d ON d.id = w.dict_id
+		WHERE w.id = $1 AND d.user_id = $2 AND d.deleted_at IS NULL
+	`
+	word := &entity.Word{}
+	var meaningJSON []byte
+	err := r.data.db.QueryRowContext(ctx, query, id, userID).Scan(
+		&word.ID, &word.DictID, &word.Word, &word.Phonetic, &meaningJSON, &word.Example,
+		&word.AudioURL, &word.Status, &word.EFFactor, &word.Interval, &word.Repetitions,
+		&word.NextReviewDate, &word.LastReviewDate, &word.CreatedAt, &word.UpdatedAt,
+	)
+	if err != nil {
 		return nil, err
 	}
 	json.Unmarshal(meaningJSON, &word.Meaning)

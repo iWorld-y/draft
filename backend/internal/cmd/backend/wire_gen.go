@@ -48,9 +48,13 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	learnRecordRepo := data.NewLearnRecordRepo(dataData, logger)
 	learningUseCase := biz.NewLearningUseCase(wordRepo, learnRecordRepo, dictionaryRepo)
 	learningService := service.NewLearningService(learningUseCase, logger)
+	userRepo := data.NewUserRepo(dataData, logger)
+	refreshTokenRepo := data.NewRefreshTokenRepo(dataData, logger)
+	authUseCase := biz.NewAuthUseCase(userRepo, refreshTokenRepo)
+	authService := service.NewAuthService(authUseCase)
 
 	grpcServer := server.NewGRPCServer(confServer, greeterService, logger)
-	httpServer := server.NewHTTPServer(confServer, greeterService, dictionaryService, learningService, logger)
+	httpServer := server.NewHTTPServer(confServer, greeterService, dictionaryService, learningService, authService, logger)
 	app := newApp(logger, grpcServer, httpServer)
 	return app, func() {
 		cleanup()
