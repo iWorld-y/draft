@@ -14,6 +14,7 @@ import (
 	"backend/pkg/translator"
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
+	"github.com/go-kratos/kratos/v2/log"
 )
 
 var (
@@ -26,6 +27,7 @@ type DictionaryUseCase struct {
 	wordRepo   repo.WordRepo
 	taskRepo   repo.UploadTaskRepo
 	translator translator.Translator
+	log        *log.Helper
 }
 
 // NewDictionaryUseCase 创建词典业务逻辑实例
@@ -34,12 +36,14 @@ func NewDictionaryUseCase(
 	wordRepo repo.WordRepo,
 	taskRepo repo.UploadTaskRepo,
 	translator translator.Translator,
+	logger log.Logger,
 ) *DictionaryUseCase {
 	return &DictionaryUseCase{
 		dictRepo:   dictRepo,
 		wordRepo:   wordRepo,
 		taskRepo:   taskRepo,
 		translator: translator,
+		log:        log.NewHelper(logger),
 	}
 }
 
@@ -169,7 +173,7 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int
 					Status:   "new",
 				}
 				if err := uc.wordRepo.Create(ctx, word); err != nil {
-					uc.taskRepo.AddFailedWordWithReason(ctx, taskID, w, "reuse", truncateReason(err.Error()))
+					uc.recordUploadFailure(ctx, taskID, w, "reuse", err)
 				}
 				uc.taskRepo.IncrementProcessed(ctx, taskID, 1)
 				done <- true
@@ -180,7 +184,7 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int
 			detail, err := uc.translator.Translate(w)
 			if err != nil {
 				// 翻译失败，记录失败单词
-				uc.taskRepo.AddFailedWordWithReason(ctx, taskID, w, "translate", truncateReason(err.Error()))
+				uc.recordUploadFailure(ctx, taskID, w, "translate", err)
 				uc.taskRepo.IncrementProcessed(ctx, taskID, 1)
 				done <- true
 				return
@@ -196,7 +200,7 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int
 				Status:   "new",
 			}
 			if err := uc.wordRepo.Create(ctx, word); err != nil {
-				uc.taskRepo.AddFailedWordWithReason(ctx, taskID, w, "save", truncateReason(err.Error()))
+				uc.recordUploadFailure(ctx, taskID, w, "save", err)
 			}
 
 			// 更新进度
@@ -243,6 +247,18 @@ func truncateReason(reason string) string {
 		return reason
 	}
 	return reason[:maxReasonLength]
+}
+
+func (uc *DictionaryUseCase) recordUploadFailure(ctx context.Context, taskID, word, stage string, err error) {
+	reason := "unknown error"
+	if err != nil {
+		reason = truncateReason(err.Error())
+	}
+
+	uc.log.WithContext(ctx).Warnf("Upload task word failed task_id=%s word=%q stage=%s reason=%q", taskID, word, stage, reason)
+	if saveErr := uc.taskRepo.AddFailedWordWithReason(ctx, taskID, word, stage, reason); saveErr != nil {
+		uc.log.WithContext(ctx).Errorf("Failed to persist upload failure detail task_id=%s word=%q stage=%s err=%v", taskID, word, stage, saveErr)
+	}
 }
 
 // GetUploadStatus 获取上传任务状态

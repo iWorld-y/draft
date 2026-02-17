@@ -27,7 +27,10 @@ const DictionaryUpload: React.FC = () => {
         const response = await getUploadStatus(taskId);
         const task = response.data;
         const failedCount = task.failed_words?.length ?? 0;
-        const failedPreview = (task.failed_words || []).slice(0, 5).join(', ');
+        const failedPreview = (task.failed_details || [])
+          .slice(0, 3)
+          .map(item => `${item.word}(${item.stage})`)
+          .join(', ');
         const message =
           task.status === 'failed'
             ? `导入失败：${failedCount} 个词未成功解析。${failedPreview ? `示例：${failedPreview}` : ''}`

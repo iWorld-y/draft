@@ -8,6 +8,20 @@ interface UploadStatusProps {
 
 const UploadStatus: React.FC<UploadStatusProps> = ({ task }) => {
   const failedCount = task.failed_words?.length ?? 0;
+  const failedDetails = task.failed_details ?? [];
+
+  const getStageLabel = (stage: string) => {
+    switch (stage) {
+      case 'translate':
+        return '翻译';
+      case 'save':
+        return '保存';
+      case 'reuse':
+        return '复用';
+      default:
+        return stage;
+    }
+  };
 
   const getStatusText = () => {
     switch (task.status) {
@@ -57,6 +71,23 @@ const UploadStatus: React.FC<UploadStatusProps> = ({ task }) => {
       
       {task.message && (
         <div className="status-message">{task.message}</div>
+      )}
+
+      {failedDetails.length > 0 && (
+        <div className="failed-details">
+          <div className="failed-details-title">失败详情（{failedDetails.length}）</div>
+          <div className="failed-details-list">
+            {failedDetails.map((item, index) => (
+              <div className="failed-detail-item" key={`${item.word}-${index}`}>
+                <div className="failed-detail-main">
+                  <span className="failed-detail-word">{item.word}</span>
+                  <span className="failed-detail-stage">{getStageLabel(item.stage)}</span>
+                </div>
+                <div className="failed-detail-reason">{item.reason}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

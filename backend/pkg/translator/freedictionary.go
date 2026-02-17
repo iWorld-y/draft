@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/go-kratos/kratos/v2/log"
 )
 
 const defaultFreeDictionaryBaseURL = "https://freedictionaryapi.com"
@@ -159,6 +161,7 @@ func (t *FreeDictionaryTranslator) tryEndpoint(endpoint string) ([]freeDictionar
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
+		log.Warnf("free dictionary api returned 404 endpoint=%s body_preview=%q", endpoint, truncateBodyPreview(body))
 		var apiErr freeDictionaryError
 		if json.Unmarshal(body, &apiErr) == nil && strings.TrimSpace(apiErr.Title) != "" {
 			return nil, true, fmt.Errorf("word not found")
@@ -178,4 +181,13 @@ func (t *FreeDictionaryTranslator) tryEndpoint(endpoint string) ([]freeDictionar
 		return nil, true, fmt.Errorf("failed to parse free dictionary response: %w", err)
 	}
 	return entries, true, nil
+}
+
+func truncateBodyPreview(body []byte) string {
+	preview := strings.TrimSpace(string(body))
+	const maxLen = 256
+	if len(preview) <= maxLen {
+		return preview
+	}
+	return preview[:maxLen]
 }
