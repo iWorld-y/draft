@@ -4,9 +4,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '0.0.0.0',
     proxy: {
-      '/articles': 'http://localhost:8124',
-      '/helloworld': 'http://localhost:8124', // Just in case
+      '/articles': 'http://backend-dev:8000',
+      '/helloworld': 'http://backend-dev:8000',
     }
   }
 })

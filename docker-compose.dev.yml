@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: vocabulary-postgres-dev
+    environment:
+      POSTGRES_USER: vocabulary
+      POSTGRES_PASSWORD: vocabulary123
+      POSTGRES_DB: vocabulary
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./backend/docs/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vocabulary -d vocabulary"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend.dev
+    container_name: kratos-backend-dev
+    working_dir: /workspace/backend
+    command: ["air", "-c", ".air.toml"]
+    volumes:
+      - ./:/workspace
+      - backend_go_cache:/go/pkg/mod
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend-dev:
+    image: node:20-alpine
+    container_name: vite-frontend-dev
+    working_dir: /workspace/frontend
+    command: ["sh", "-c", "corepack enable && pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0 --port 8123"]
+    volumes:
+      - ./:/workspace
+      - frontend_node_modules:/workspace/frontend/node_modules
+    ports:
+      - "8123:8123"
+    depends_on:
+      - backend-dev
+
+volumes:
+  postgres_data_dev:
+  backend_go_cache:
+  frontend_node_modules:

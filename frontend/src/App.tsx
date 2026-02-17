@@ -2,51 +2,103 @@ import React, { useState, useEffect } from 'react';
 import Dashboard from './pages/Dashboard';
 import DictionaryUpload from './pages/DictionaryUpload';
 import Learning from './pages/Learning';
+import Hello from './pages/Hello';
+import { getCurrentUser, logout, type AuthUser } from './services/auth';
 import './styles/global.css';
 
-type Page = 'dashboard' | 'upload' | 'learn';
+type Page = 'hello' | 'dashboard' | 'upload' | 'learn';
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [currentPage, setCurrentPage] = useState<Page>('hello');
   const [dictId, setDictId] = useState<number>(1);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  const getPageFromPath = (path: string): Page => {
+    if (path === '/hello') {
+      return 'hello';
+    }
+    if (path === '/upload') {
+      return 'upload';
+    }
+    if (path === '/learn') {
+      return 'learn';
+    }
+    return 'dashboard';
+  };
+
+  const guardPage = (targetPage: Page, currentUser: AuthUser | null): Page => {
+    if (!currentUser && targetPage !== 'hello') {
+      return 'hello';
+    }
+    if (currentUser && targetPage === 'hello') {
+      return 'dashboard';
+    }
+    return targetPage;
+  };
 
   useEffect(() => {
-    const path = window.location.pathname;
-    const searchParams = new URLSearchParams(window.location.search);
-    
-    if (path === '/upload') {
-      setCurrentPage('upload');
-    } else if (path === '/learn') {
-      setCurrentPage('learn');
-      const id = searchParams.get('dictId');
-      if (id) {
-        setDictId(parseInt(id, 10));
+    const syncRouteFromLocation = () => {
+      const currentUser = getCurrentUser();
+      setUser(currentUser);
+
+      const path = window.location.pathname;
+      const searchParams = new URLSearchParams(window.location.search);
+      const targetPage = getPageFromPath(path);
+      const finalPage = guardPage(targetPage, currentUser);
+
+      if (finalPage === 'learn') {
+        const id = searchParams.get('dictId');
+        if (id) {
+          setDictId(parseInt(id, 10));
+        }
       }
-    } else {
-      setCurrentPage('dashboard');
-    }
+
+      setCurrentPage(finalPage);
+
+      if (finalPage !== targetPage) {
+        const redirectPath = finalPage === 'hello' ? '/hello' : '/';
+        window.history.replaceState({}, '', redirectPath);
+      }
+    };
+
+    syncRouteFromLocation();
+    window.addEventListener('popstate', syncRouteFromLocation);
+    return () => window.removeEventListener('popstate', syncRouteFromLocation);
   }, []);
 
-  const navigateTo = (page: Page, params?: { dictId?: number }) => {
-    setCurrentPage(page);
+  const navigateTo = (
+    page: Page,
+    params?: { dictId?: number },
+    replaceHistory = false,
+    userOverride?: AuthUser | null,
+  ) => {
+    const activeUser = userOverride === undefined ? user : userOverride;
+    const finalPage = guardPage(page, activeUser);
+
+    setCurrentPage(finalPage);
     if (params?.dictId) {
       setDictId(params.dictId);
     }
-    
+
     // Update URL
-    let url = '/';
-    if (page === 'upload') {
+    let url = '/hello';
+    if (finalPage === 'dashboard') {
+      url = '/';
+    } else if (finalPage === 'upload') {
       url = '/upload';
-    } else if (page === 'learn') {
+    } else if (finalPage === 'learn') {
       url = params?.dictId ? `/learn?dictId=${params.dictId}` : '/learn';
     }
-    window.history.pushState({}, '', url);
+
+    if (replaceHistory) {
+      window.history.replaceState({}, '', url);
+    } else {
+      window.history.pushState({}, '', url);
+    }
   };
 
   // Override window.location for navigation
   useEffect(() => {
-    const originalHref = window.location.href;
-    
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const anchor = target.closest('a');
@@ -55,7 +107,9 @@ const App: React.FC = () => {
         const href = anchor.getAttribute('href');
         if (href && href.startsWith('/')) {
           e.preventDefault();
-          if (href === '/upload') {
+          if (href === '/hello') {
+            navigateTo('hello');
+          } else if (href === '/upload') {
             navigateTo('upload');
           } else if (href.startsWith('/learn')) {
             const url = new URL(href, window.location.origin);
@@ -70,10 +124,23 @@ const App: React.FC = () => {
 
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
-  }, []);
+  }, [user]);
+
+  const handleLoginSuccess = (loggedInUser: AuthUser) => {
+    setUser(loggedInUser);
+    navigateTo('dashboard', undefined, true, loggedInUser);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+    navigateTo('hello', undefined, true, null);
+  };
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'hello':
+        return <Hello onLoginSuccess={handleLoginSuccess} />;
       case 'upload':
         return <DictionaryUpload />;
       case 'learn':
@@ -86,6 +153,26 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
+      {user ? (
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            position: 'fixed',
+            right: '16px',
+            top: '16px',
+            zIndex: 100,
+            border: 'none',
+            borderRadius: '10px',
+            padding: '8px 12px',
+            background: '#1f2937',
+            color: '#fff',
+            cursor: 'pointer',
+          }}
+        >
+          退出登录（{user.username}）
+        </button>
+      ) : null}
       {renderPage()}
     </div>
   );

@@ -1,0 +1,98 @@
+.hello-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(150deg, #f8fbff 0%, #ecf4ff 100%);
+}
+
+.hello-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 45, 95, 0.12);
+  padding: 28px;
+}
+
+.hello-card h1 {
+  margin-bottom: 8px;
+  font-size: 32px;
+  letter-spacing: 1px;
+  text-transform: lowercase;
+}
+
+.hello-subtitle {
+  color: #5c6b82;
+  margin-bottom: 20px;
+}
+
+.hello-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.hello-tabs button {
+  border: 1px solid #c9d6ec;
+  border-radius: 10px;
+  background: #f7faff;
+  color: #4f5f77;
+  padding: 10px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.hello-tabs button.active {
+  background: #0d6efd;
+  color: #fff;
+  border-color: #0d6efd;
+}
+
+.hello-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hello-form label {
+  color: #33435e;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hello-form input {
+  border: 1px solid #d0d9e8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.hello-form input:focus {
+  outline: none;
+  border-color: #0d6efd;
+}
+
+.hello-error {
+  color: #c62828;
+  font-size: 13px;
+}
+
+.hello-submit {
+  margin-top: 6px;
+  border: none;
+  border-radius: 10px;
+  background: #0d6efd;
+  color: #fff;
+  padding: 11px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.hello-submit:hover {
+  background: #0b5ed7;
+}
+

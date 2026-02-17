@@ -20,8 +20,12 @@ dev-frontend:
 
 .PHONY: dev
 dev:
-	@echo "Starting both backend and frontend..."
-	make -j 2 dev-backend dev-frontend
+	@echo "Starting full Docker dev stack with hot reload..."
+	docker-compose -f docker-compose.dev.yml up --build
+
+.PHONY: dev-down
+dev-down:
+	docker-compose -f docker-compose.dev.yml down
 
 .PHONY: build
 build:
