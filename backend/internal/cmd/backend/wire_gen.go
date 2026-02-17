@@ -12,7 +12,6 @@ import (
 	"backend/internal/data"
 	"backend/internal/server"
 	"backend/internal/service"
-	"backend/pkg/translator"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -29,31 +28,24 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// Greeter 相关
 	greeterRepo := data.NewGreeterRepo(dataData, logger)
 	articleRepo := data.NewArticleRepo(dataData, logger)
 	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, articleRepo)
 	greeterService := service.NewGreeterService(greeterUsecase, logger)
-
-	// Dictionary 相关
+	grpcServer := server.NewGRPCServer(confServer, greeterService, logger)
 	dictionaryRepo := data.NewDictionaryRepo(dataData, logger)
 	wordRepo := data.NewWordRepo(dataData, logger)
 	uploadTaskRepo := data.NewUploadTaskRepo(dataData, logger)
-	translatorImpl := translator.NewFreeDictionaryTranslator("")
-	dictionaryUseCase := biz.NewDictionaryUseCase(dictionaryRepo, wordRepo, uploadTaskRepo, translatorImpl, logger)
+	translator := biz.ProvideTranslator()
+	dictionaryUseCase := biz.NewDictionaryUseCase(dictionaryRepo, wordRepo, uploadTaskRepo, translator, logger)
 	dictionaryService := service.NewDictionaryService(dictionaryUseCase, logger)
-
-	// Learning 相关
 	learnRecordRepo := data.NewLearnRecordRepo(dataData, logger)
 	learningUseCase := biz.NewLearningUseCase(wordRepo, learnRecordRepo, dictionaryRepo)
 	learningService := service.NewLearningService(learningUseCase, logger)
 	userRepo := data.NewUserRepo(dataData, logger)
 	refreshTokenRepo := data.NewRefreshTokenRepo(dataData, logger)
 	authUseCase := biz.NewAuthUseCase(userRepo, refreshTokenRepo)
-	authService := service.NewAuthService(authUseCase, logger)
-
-	grpcServer := server.NewGRPCServer(confServer, greeterService, logger)
+	authService := service.NewAuthService(authUseCase)
 	httpServer := server.NewHTTPServer(confServer, greeterService, dictionaryService, learningService, authService, logger)
 	app := newApp(logger, grpcServer, httpServer)
 	return app, func() {

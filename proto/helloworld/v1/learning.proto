@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package helloworld.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "backend/api/helloworld/v1;v1";
+
+service Learning {
+  rpc GetTodayTasks (GetTodayTasksRequest) returns (GetTodayTasksReply) {
+    option (google.api.http) = {
+      get: "/api/v1/learning/today-tasks"
+    };
+  }
+
+  rpc SubmitLearning (SubmitLearningRequest) returns (SubmitLearningReply) {
+    option (google.api.http) = {
+      post: "/api/v1/learning/submit"
+      body: "*"
+    };
+  }
+}
+
+message GetTodayTasksRequest {
+  int64 dict_id = 1;
+  int32 limit = 2;
+}
+
+message WordItem {
+  int64 id = 1;
+  string word = 2;
+  string phonetic = 3;
+  bytes meaning = 4;
+  string example = 5;
+  string audio_url = 6;
+  string status = 7;
+  string next_review_date = 8;
+}
+
+message GetTodayTasksReply {
+  int32 review_count = 1;
+  int32 new_count = 2;
+  repeated WordItem words = 3;
+}
+
+message SubmitLearningRequest {
+  int64 word_id = 1;
+  int32 quality = 2;
+  int32 time_spent = 3;
+}
+
+message SubmitLearningReply {
+  int64 word_id = 1;
+  string new_status = 2;
+  int32 new_interval = 3;
+  string next_review_date = 4;
+  double ef_factor = 5;
+}

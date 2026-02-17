@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package helloworld.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "backend/api/helloworld/v1;v1";
+
+service Dictionary {
+  rpc CreateDictionary (CreateDictionaryRequest) returns (CreateDictionaryReply) {
+    option (google.api.http) = {
+      post: "/api/v1/dictionaries"
+      body: "*"
+    };
+  }
+
+  rpc ListDictionaries (ListDictionariesRequest) returns (ListDictionariesReply) {
+    option (google.api.http) = {
+      get: "/api/v1/dictionaries"
+    };
+  }
+
+  rpc UploadDictionary (UploadDictionaryRequest) returns (UploadDictionaryReply) {
+    option (google.api.http) = {
+      post: "/api/v1/dictionaries/upload"
+      body: "*"
+    };
+  }
+
+  rpc GetUploadStatus (GetUploadStatusRequest) returns (GetUploadStatusReply) {
+    option (google.api.http) = {
+      get: "/api/v1/dictionaries/upload/status/{task_id}"
+    };
+  }
+}
+
+message CreateDictionaryRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message CreateDictionaryReply {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  int32 total_words = 4;
+  double progress = 5;
+}
+
+message ListDictionariesRequest {}
+
+message DictionaryItem {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  int32 total_words = 4;
+  int32 learned_words = 5;
+  double progress = 6;
+  string created_at = 7;
+}
+
+message ListDictionariesReply {
+  repeated DictionaryItem items = 1;
+}
+
+message UploadDictionaryRequest {
+  bytes file_content = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message UploadDictionaryReply {
+  string task_id = 1;
+  string status = 2;
+  int32 total_words = 3;
+  int32 processed_words = 4;
+}
+
+message GetUploadStatusRequest {
+  string task_id = 1;
+}
+
+message GetUploadStatusReply {
+  string task_id = 1;
+  string status = 2;
+  double progress = 3;
+  int32 total = 4;
+  int32 processed = 5;
+  repeated string failed_words = 6;
+}

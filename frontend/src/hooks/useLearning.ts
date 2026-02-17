@@ -22,13 +22,13 @@ export const useLearning = (dictId: number = 1): UseLearningReturn => {
   const [progress, setProgress] = useState<Progress>({ completed: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  
+
   const loadTasks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await getTodayTasks({ dict_id: dictId, limit: 20 });
-      const { words: taskWords } = response.data;
-      
+      const data = await getTodayTasks({ dict_id: dictId, limit: 20 });
+      const { words: taskWords } = data;
+
       setWords(taskWords);
       setProgress({
         completed: 0,
@@ -43,21 +43,20 @@ export const useLearning = (dictId: number = 1): UseLearningReturn => {
       setIsLoading(false);
     }
   }, [dictId]);
-  
+
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
-  
+
   const submitAnswer = async (quality: number) => {
     const currentWord = words[currentIndex];
     if (!currentWord) return;
-    
+
     setIsLoading(true);
     try {
       const data: SubmitLearningData = {
         word_id: currentWord.id,
         quality,
-        dictionary_id: dictId
       };
       await submitLearning(data);
       setProgress(prev => ({
@@ -71,7 +70,7 @@ export const useLearning = (dictId: number = 1): UseLearningReturn => {
       setIsLoading(false);
     }
   };
-  
+
   const loadNextWord = () => {
     if (currentIndex + 1 >= words.length) {
       setIsFinished(true);
@@ -79,7 +78,7 @@ export const useLearning = (dictId: number = 1): UseLearningReturn => {
       setCurrentIndex(prev => prev + 1);
     }
   };
-  
+
   return {
     currentWord: words[currentIndex] || null,
     progress,

@@ -15,9 +15,9 @@ const Dashboard: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await getDictionaries();
-      const dicts: Dictionary[] = Array.isArray(response.data?.items) ? response.data.items : [];
+      const dicts: Dictionary[] = Array.isArray(response.items) ? response.items : [];
       setDictionaries(dicts);
-      
+
       const totalWords = dicts.reduce((sum, d) => sum + d.total_words, 0);
       setStats({
         totalWords,
@@ -34,13 +34,14 @@ const Dashboard: React.FC = () => {
     if (!confirm('确定要删除这个词典吗？')) {
       return;
     }
-    
+
     try {
       await deleteDictionary(id);
       await loadDictionaries();
     } catch (error) {
       console.error('Failed to delete dictionary:', error);
-      alert('删除失败，请重试');
+      const message = error instanceof Error ? error.message : '删除失败，请重试';
+      alert(message);
     }
   };
 
@@ -67,7 +68,7 @@ const Dashboard: React.FC = () => {
                 <strong>{stats.totalWords}</strong> 个单词
               </span>
             </div>
-            <button 
+            <button
               className="upload-btn"
               onClick={() => window.location.href = '/upload'}
             >
@@ -86,7 +87,7 @@ const Dashboard: React.FC = () => {
             <div className="empty-icon">📚</div>
             <h3>还没有词典</h3>
             <p>上传你的第一个词典开始学习吧</p>
-            <button 
+            <button
               className="primary-button"
               onClick={() => window.location.href = '/upload'}
             >
@@ -105,13 +106,13 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="dict-actions">
-                  <button 
+                  <button
                     className="learn-btn"
                     onClick={() => window.location.href = `/learn?dictId=${dict.id}`}
                   >
                     开始学习
                   </button>
-                  <button 
+                  <button
                     className="delete-btn"
                     onClick={() => handleDelete(dict.id)}
                   >

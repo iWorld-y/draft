@@ -9,21 +9,21 @@ interface WordCardProps {
 
 const WordCard: React.FC<WordCardProps> = ({ word, onReveal }) => {
   const [revealed, setRevealed] = useState(false);
-  
+
   const handleReveal = () => {
     setRevealed(true);
     onReveal();
   };
-  
+
   return (
     <div className="word-card">
       <div className="word-header">
         <h1 className="word-text">{word.word}</h1>
         {word.phonetic && <span className="phonetic">{word.phonetic}</span>}
       </div>
-      
+
       {!revealed ? (
-        <button 
+        <button
           className="reveal-button"
           onClick={handleReveal}
         >
@@ -31,13 +31,13 @@ const WordCard: React.FC<WordCardProps> = ({ word, onReveal }) => {
         </button>
       ) : (
         <div className="word-meaning">
-          {word.meaning.definitions.map((def, idx) => (
+          {word.meaning.definitions.length > 0 ? word.meaning.definitions.map((def, idx) => (
             <div key={idx} className="definition-item">
               <span className="pos">{def.pos}</span>
               <span className="text">{def.text}</span>
             </div>
-          ))}
-          
+          )) : <div className="definition-item"><span className="text">暂无释义</span></div>}
+
           {word.example && (
             <div className="example">
               <label>例句：</label>

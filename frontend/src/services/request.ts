@@ -8,7 +8,6 @@ const request = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor
 request.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {
@@ -17,14 +16,8 @@ request.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor
 request.interceptors.response.use(
-  (response) => {
-    if (response.data.code !== 0) {
-      return Promise.reject(new Error(response.data.message));
-    }
-    return response.data;
-  },
+  (response) => response.data,
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
@@ -44,7 +37,11 @@ request.interceptors.response.use(
       }
     }
 
-    console.error('API Error:', error);
+    const serverMessage = error?.response?.data?.message;
+    if (serverMessage) {
+      return Promise.reject(new Error(serverMessage));
+    }
+
     return Promise.reject(error);
   },
 );

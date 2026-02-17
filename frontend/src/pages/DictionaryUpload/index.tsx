@@ -21,11 +21,10 @@ const DictionaryUpload: React.FC = () => {
 
   const startPolling = useCallback((taskId: string) => {
     stopPolling();
-    
+
     pollingRef.current = setInterval(async () => {
       try {
-        const response = await getUploadStatus(taskId);
-        const task = response.data;
+        const task = await getUploadStatus(taskId);
         const failedCount = task.failed_words?.length ?? 0;
         const failedPreview = (task.failed_details || [])
           .slice(0, 3)
@@ -39,11 +38,10 @@ const DictionaryUpload: React.FC = () => {
           ...task,
           message,
         });
-        
+
         if (task.status === 'completed' || task.status === 'failed') {
           stopPolling();
           if (task.status === 'completed') {
-            // Navigate to dictionary list after 2 seconds
             setTimeout(() => {
               window.location.href = '/';
             }, 2000);
@@ -64,14 +62,14 @@ const DictionaryUpload: React.FC = () => {
     setIsUploading(true);
     try {
       const response = await uploadDictionary(file);
-      const { task_id } = response.data;
-      
+      const { task_id } = response;
+
       setUploadTask({
         task_id,
         status: 'pending',
         progress: 0
       });
-      
+
       startPolling(task_id);
     } catch (error) {
       console.error('Upload failed:', error);
@@ -95,7 +93,7 @@ const DictionaryUpload: React.FC = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       handleFileUpload(files[0]);
@@ -118,7 +116,7 @@ const DictionaryUpload: React.FC = () => {
       <div className="upload-container">
         <h1>上传词典</h1>
         <p className="subtitle">支持 TXT 格式文件，每行一个单词</p>
-        
+
         {!uploadTask ? (
           <div
             className={`upload-area ${isDragging ? 'dragging' : ''} ${isUploading ? 'uploading' : ''}`}
@@ -143,8 +141,8 @@ const DictionaryUpload: React.FC = () => {
         ) : (
           <UploadStatus task={uploadTask} />
         )}
-        
-        <button 
+
+        <button
           className="back-button"
           onClick={() => window.location.href = '/'}
         >

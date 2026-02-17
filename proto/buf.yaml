@@ -3,6 +3,7 @@ deps:
   - buf.build/go-kratos/kratos
   - buf.build/envoyproxy/protoc-gen-validate
   - buf.build/gnostic/gnostic
+  - buf.build/googleapis/googleapis
 lint:
   use:
     - DEFAULT
