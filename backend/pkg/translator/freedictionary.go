@@ -33,19 +33,21 @@ type FreeDictionaryTranslator struct {
 	client  *http.Client
 }
 
+type freeDictionaryResponse struct {
+	Word    string                `json:"word"`
+	Entries []freeDictionaryEntry `json:"entries"`
+}
+
 type freeDictionaryEntry struct {
-	Word      string `json:"word"`
-	Phonetic  string `json:"phonetic"`
-	Phonetics []struct {
+	PartOfSpeech   string `json:"partOfSpeech"`
+	Pronunciations []struct {
+		Type string `json:"type"`
 		Text string `json:"text"`
-	} `json:"phonetics"`
-	Meanings []struct {
-		PartOfSpeech string `json:"partOfSpeech"`
-		Definitions  []struct {
-			Definition string `json:"definition"`
-			Example    string `json:"example"`
-		} `json:"definitions"`
-	} `json:"meanings"`
+	} `json:"pronunciations"`
+	Senses []struct {
+		Definition string   `json:"definition"`
+		Examples   []string `json:"examples"`
+	} `json:"senses"`
 }
 
 type freeDictionaryError struct {
@@ -73,40 +75,36 @@ func (t *FreeDictionaryTranslator) Translate(word string) (*WordDetail, error) {
 		return nil, fmt.Errorf("word is empty")
 	}
 
-	entries, err := t.requestEntries(normalized)
+	resp, err := t.requestEntries(normalized)
 	if err != nil {
 		return nil, err
 	}
-	if len(entries) == 0 {
+	if len(resp.Entries) == 0 {
 		return nil, fmt.Errorf("word not found: %s", normalized)
 	}
 
-	entry := entries[0]
-	phonetic := entry.Phonetic
-	if phonetic == "" {
-		for _, p := range entry.Phonetics {
-			if strings.TrimSpace(p.Text) != "" {
-				phonetic = p.Text
-				break
-			}
-		}
-	}
+	phonetic := pickPhonetic(resp.Entries)
 
 	definitions := make([]map[string]string, 0)
 	var example string
-	for _, meaning := range entry.Meanings {
-		for _, def := range meaning.Definitions {
-			text := strings.TrimSpace(def.Definition)
+	for _, entry := range resp.Entries {
+		for _, sense := range entry.Senses {
+			text := strings.TrimSpace(sense.Definition)
 			if text == "" {
 				continue
 			}
 			item := map[string]string{"text": text}
-			if strings.TrimSpace(meaning.PartOfSpeech) != "" {
-				item["pos"] = meaning.PartOfSpeech
+			if strings.TrimSpace(entry.PartOfSpeech) != "" {
+				item["pos"] = entry.PartOfSpeech
 			}
 			definitions = append(definitions, item)
-			if example == "" && strings.TrimSpace(def.Example) != "" {
-				example = def.Example
+			if example == "" {
+				for _, ex := range sense.Examples {
+					if strings.TrimSpace(ex) != "" {
+						example = ex
+						break
+					}
+				}
 			}
 		}
 	}
@@ -114,8 +112,13 @@ func (t *FreeDictionaryTranslator) Translate(word string) (*WordDetail, error) {
 		return nil, fmt.Errorf("no definitions found for word: %s", normalized)
 	}
 
+	wordInResp := strings.TrimSpace(resp.Word)
+	if wordInResp == "" {
+		wordInResp = normalized
+	}
+
 	return &WordDetail{
-		Word:     normalized,
+		Word:     wordInResp,
 		Phonetic: phonetic,
 		Meaning: map[string]interface{}{
 			"definitions": definitions,
@@ -124,63 +127,60 @@ func (t *FreeDictionaryTranslator) Translate(word string) (*WordDetail, error) {
 	}, nil
 }
 
-func (t *FreeDictionaryTranslator) requestEntries(word string) ([]freeDictionaryEntry, error) {
+func (t *FreeDictionaryTranslator) requestEntries(word string) (*freeDictionaryResponse, error) {
 	escaped := url.PathEscape(word)
-	endpoints := []string{
-		t.BaseURL + "/api/v1/entries/en/" + escaped,
-		t.BaseURL + "/api/v2/entries/en/" + escaped,
-	}
-
-	var lastErr error
-	for _, endpoint := range endpoints {
-		entries, handled, err := t.tryEndpoint(endpoint)
-		if handled {
-			if err != nil {
-				lastErr = err
-				continue
-			}
-			return entries, nil
-		}
-	}
-	if lastErr != nil {
-		return nil, lastErr
-	}
-	return nil, fmt.Errorf("failed to fetch word from free dictionary api")
+	endpoint := t.BaseURL + "/api/v1/entries/en/" + escaped
+	return t.tryEndpoint(endpoint)
 }
 
-func (t *FreeDictionaryTranslator) tryEndpoint(endpoint string) ([]freeDictionaryEntry, bool, error) {
+func (t *FreeDictionaryTranslator) tryEndpoint(endpoint string) (*freeDictionaryResponse, error) {
 	resp, err := t.client.Get(endpoint)
 	if err != nil {
-		return nil, true, fmt.Errorf("failed to call free dictionary api: %w", err)
+		return nil, fmt.Errorf("failed to call free dictionary api: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, true, fmt.Errorf("failed to read free dictionary response: %w", err)
+		return nil, fmt.Errorf("failed to read free dictionary response: %w", err)
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		log.Warnf("free dictionary api returned 404 endpoint=%s body_preview=%q", endpoint, truncateBodyPreview(body))
 		var apiErr freeDictionaryError
 		if json.Unmarshal(body, &apiErr) == nil && strings.TrimSpace(apiErr.Title) != "" {
-			return nil, true, fmt.Errorf("word not found")
+			return nil, fmt.Errorf("word not found")
 		}
-		return nil, true, fmt.Errorf("word not found")
+		return nil, fmt.Errorf("word not found")
 	}
 
-	if resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusMethodNotAllowed {
-		return nil, false, nil
-	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, true, fmt.Errorf("free dictionary api status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("free dictionary api status: %d", resp.StatusCode)
 	}
 
-	var entries []freeDictionaryEntry
-	if err := json.Unmarshal(body, &entries); err != nil {
-		return nil, true, fmt.Errorf("failed to parse free dictionary response: %w", err)
+	var parsed freeDictionaryResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse free dictionary response: %w", err)
 	}
-	return entries, true, nil
+	return &parsed, nil
+}
+
+func pickPhonetic(entries []freeDictionaryEntry) string {
+	for _, entry := range entries {
+		for _, p := range entry.Pronunciations {
+			if strings.EqualFold(strings.TrimSpace(p.Type), "ipa") && strings.TrimSpace(p.Text) != "" {
+				return p.Text
+			}
+		}
+	}
+	for _, entry := range entries {
+		for _, p := range entry.Pronunciations {
+			if strings.TrimSpace(p.Text) != "" {
+				return p.Text
+			}
+		}
+	}
+	return ""
 }
 
 func truncateBodyPreview(body []byte) string {
