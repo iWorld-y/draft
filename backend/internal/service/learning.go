@@ -9,6 +9,7 @@ import (
 	authctx "backend/internal/auth"
 	"backend/internal/biz"
 
+	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
@@ -64,6 +65,7 @@ type TodayTasksResponse struct {
 
 // GetTodayTasks 获取今日学习任务
 func (s *LearningService) GetTodayTasks(ctx context.Context, req *TodayTasksRequest) (*TodayTasksResponse, error) {
+	s.log.WithContext(ctx).Infof("GetTodayTasks req: %+v", req)
 	userID, ok := authctx.UserIDFromContext(ctx)
 	if !ok || userID <= 0 {
 		return nil, biz.ErrUnauthorized
@@ -71,6 +73,7 @@ func (s *LearningService) GetTodayTasks(ctx context.Context, req *TodayTasksRequ
 
 	dictID, err := strconv.ParseInt(req.DictID, 10, 64)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("GetTodayTasks failed to parse dict_id=%q err=%v", req.DictID, err)
 		return nil, err
 	}
 
@@ -83,6 +86,7 @@ func (s *LearningService) GetTodayTasks(ctx context.Context, req *TodayTasksRequ
 
 	result, err := s.uc.GetTodayTasks(ctx, userID, dictID, limit)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("GetTodayTasks failed req=%+v user_id=%d err=%v", req, userID, err)
 		return nil, err
 	}
 
@@ -130,6 +134,7 @@ type SubmitLearningResponse struct {
 
 // SubmitLearning 提交学习结果
 func (s *LearningService) SubmitLearning(ctx context.Context, req *SubmitLearningRequest) (*SubmitLearningResponse, error) {
+	s.log.WithContext(ctx).Infof("SubmitLearning req: %+v", req)
 	userID, ok := authctx.UserIDFromContext(ctx)
 	if !ok || userID <= 0 {
 		return nil, biz.ErrUnauthorized
@@ -137,12 +142,17 @@ func (s *LearningService) SubmitLearning(ctx context.Context, req *SubmitLearnin
 
 	wordID, err := strconv.ParseInt(req.WordID, 10, 64)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("SubmitLearning failed to parse word_id=%q err=%v", req.WordID, err)
 		return nil, err
 	}
 
 	quality, err := strconv.Atoi(req.Quality)
 	if err != nil || quality < 0 || quality > 5 {
-		return nil, err
+		s.log.WithContext(ctx).Errorf("SubmitLearning failed invalid quality=%q err=%v", req.Quality, err)
+		if err != nil {
+			return nil, err
+		}
+		return nil, kerrors.BadRequest("INVALID_QUALITY", "quality 必须在 0-5 之间")
 	}
 
 	timeSpent := 0
@@ -152,6 +162,7 @@ func (s *LearningService) SubmitLearning(ctx context.Context, req *SubmitLearnin
 
 	result, err := s.uc.SubmitLearning(ctx, userID, wordID, quality, timeSpent)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("SubmitLearning failed req=%+v user_id=%d err=%v", req, userID, err)
 		return nil, err
 	}
 

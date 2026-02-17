@@ -91,11 +91,12 @@ func (uc *DictionaryUseCase) UploadDictionary(ctx context.Context, reader io.Rea
 	// 3. 创建上传任务
 	taskID := fmt.Sprintf("task_%d_%d", dict.ID, time.Now().Unix())
 	task := &entity.UploadTask{
-		ID:          taskID,
-		DictID:      &dict.ID,
-		Status:      "processing",
-		TotalWords:  len(words),
-		FailedWords: []string{},
+		ID:            taskID,
+		DictID:        &dict.ID,
+		Status:        "processing",
+		TotalWords:    len(words),
+		FailedWords:   []string{},
+		FailedDetails: []entity.FailedDetail{},
 	}
 	if err := uc.taskRepo.Create(ctx, task); err != nil {
 		return nil, fmt.Errorf("failed to create upload task: %w", err)
@@ -168,7 +169,7 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int
 					Status:   "new",
 				}
 				if err := uc.wordRepo.Create(ctx, word); err != nil {
-					uc.taskRepo.AddFailedWord(ctx, taskID, w)
+					uc.taskRepo.AddFailedWordWithReason(ctx, taskID, w, "reuse", truncateReason(err.Error()))
 				}
 				uc.taskRepo.IncrementProcessed(ctx, taskID, 1)
 				done <- true
@@ -179,7 +180,7 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int
 			detail, err := uc.translator.Translate(w)
 			if err != nil {
 				// 翻译失败，记录失败单词
-				uc.taskRepo.AddFailedWord(ctx, taskID, w)
+				uc.taskRepo.AddFailedWordWithReason(ctx, taskID, w, "translate", truncateReason(err.Error()))
 				uc.taskRepo.IncrementProcessed(ctx, taskID, 1)
 				done <- true
 				return
@@ -195,7 +196,7 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int
 				Status:   "new",
 			}
 			if err := uc.wordRepo.Create(ctx, word); err != nil {
-				uc.taskRepo.AddFailedWord(ctx, taskID, w)
+				uc.taskRepo.AddFailedWordWithReason(ctx, taskID, w, "save", truncateReason(err.Error()))
 			}
 
 			// 更新进度
@@ -229,6 +230,19 @@ func (uc *DictionaryUseCase) processUploadTask(taskID string, dictID, userID int
 		count, _ := uc.wordRepo.CountByDictID(ctx, dictID)
 		uc.dictRepo.UpdateStats(ctx, dictID, count, 0)
 	}
+}
+
+func truncateReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return "unknown error"
+	}
+
+	const maxReasonLength = 512
+	if len(reason) <= maxReasonLength {
+		return reason
+	}
+	return reason[:maxReasonLength]
 }
 
 // GetUploadStatus 获取上传任务状态

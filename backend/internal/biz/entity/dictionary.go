@@ -59,15 +59,24 @@ type LearnRecord struct {
 
 // UploadTask 上传任务实体
 type UploadTask struct {
-	ID             string     `json:"id" db:"id"`
-	DictID         *int64     `json:"dict_id" db:"dict_id"`
-	Status         string     `json:"status" db:"status"` // pending/processing/completed/failed
-	TotalWords     int        `json:"total_words" db:"total_words"`
-	ProcessedWords int        `json:"processed_words" db:"processed_words"`
-	FailedWords    []string   `json:"failed_words" db:"failed_words"`
-	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
-	CompletedAt    *time.Time `json:"completed_at" db:"completed_at"`
+	ID             string         `json:"id" db:"id"`
+	DictID         *int64         `json:"dict_id" db:"dict_id"`
+	Status         string         `json:"status" db:"status"` // pending/processing/completed/failed
+	TotalWords     int            `json:"total_words" db:"total_words"`
+	ProcessedWords int            `json:"processed_words" db:"processed_words"`
+	FailedWords    []string       `json:"failed_words" db:"failed_words"`
+	FailedDetails  []FailedDetail `json:"failed_details" db:"failed_details"`
+	CreatedAt      time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at" db:"updated_at"`
+	CompletedAt    *time.Time     `json:"completed_at" db:"completed_at"`
+}
+
+// FailedDetail 上传失败详情
+type FailedDetail struct {
+	Word   string    `json:"word"`
+	Stage  string    `json:"stage"`
+	Reason string    `json:"reason"`
+	At     time.Time `json:"at"`
 }
 
 // Progress 计算进度百分比

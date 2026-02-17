@@ -9,6 +9,7 @@ import (
 
 	authctx "backend/internal/auth"
 	"backend/internal/biz"
+	"backend/internal/biz/entity"
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
@@ -46,12 +47,14 @@ type CreateDictionaryResponse struct {
 
 // CreateDictionary 创建词典
 func (s *DictionaryService) CreateDictionary(ctx context.Context, req *CreateDictionaryRequest) (*CreateDictionaryResponse, error) {
+	s.log.WithContext(ctx).Infof("CreateDictionary req: %+v", req)
 	userID, ok := authctx.UserIDFromContext(ctx)
 	if !ok || userID <= 0 {
 		return nil, biz.ErrUnauthorized
 	}
 	dict, err := s.uc.CreateDictionary(ctx, req.Name, req.Description, userID)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("CreateDictionary failed req=%+v user_id=%d err=%v", req, userID, err)
 		return nil, err
 	}
 
@@ -82,12 +85,14 @@ type DictionaryItem struct {
 
 // ListDictionaries 获取词典列表
 func (s *DictionaryService) ListDictionaries(ctx context.Context) (*ListDictionariesResponse, error) {
+	s.log.WithContext(ctx).Infof("ListDictionaries req: <nil>")
 	userID, ok := authctx.UserIDFromContext(ctx)
 	if !ok || userID <= 0 {
 		return nil, biz.ErrUnauthorized
 	}
 	dicts, err := s.uc.ListDictionaries(ctx, userID)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("ListDictionaries failed user_id=%d err=%v", userID, err)
 		return nil, err
 	}
 
@@ -123,21 +128,23 @@ type UploadDictionaryResponse struct {
 
 // UploadDictionary 上传词典文件
 func (s *DictionaryService) UploadDictionary(ctx context.Context) (*UploadDictionaryResponse, error) {
+	s.log.WithContext(ctx).Infof("UploadDictionary req: <multipart form>")
 	// 从 HTTP 请求中获取文件
 	httpCtx, ok := http.RequestFromServerContext(ctx)
 	if !ok {
+		s.log.WithContext(ctx).Errorf("UploadDictionary failed: not http context")
 		return nil, fmt.Errorf("not http context")
 	}
 
 	// 解析 multipart form
 	if err := httpCtx.ParseMultipartForm(32 << 20); err != nil { // 32MB max
-		s.log.Warnf("upload dictionary parse multipart failed: %v", err)
+		s.log.WithContext(ctx).Errorf("UploadDictionary parse multipart failed err=%v", err)
 		return nil, kerrors.BadRequest("INVALID_MULTIPART_FORM", "上传请求格式错误，请使用 multipart/form-data")
 	}
 
 	file, _, err := httpCtx.FormFile("file")
 	if err != nil {
-		s.log.Warnf("upload dictionary missing file field: %v", err)
+		s.log.WithContext(ctx).Errorf("UploadDictionary missing file field err=%v", err)
 		return nil, kerrors.BadRequest("MISSING_UPLOAD_FILE", "缺少上传文件字段 file")
 	}
 	defer file.Close()
@@ -151,7 +158,7 @@ func (s *DictionaryService) UploadDictionary(ctx context.Context) (*UploadDictio
 	// 读取文件内容
 	content, err := io.ReadAll(file)
 	if err != nil {
-		s.log.Errorf("upload dictionary read file failed: %v", err)
+		s.log.WithContext(ctx).Errorf("UploadDictionary read file failed err=%v", err)
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 	if len(content) == 0 {
@@ -164,7 +171,7 @@ func (s *DictionaryService) UploadDictionary(ctx context.Context) (*UploadDictio
 	}
 	result, err := s.uc.UploadDictionary(ctx, bytes.NewReader(content), name, description, userID)
 	if err != nil {
-		s.log.Warnf("upload dictionary failed, user_id=%d name=%q: %v", userID, name, err)
+		s.log.WithContext(ctx).Errorf("UploadDictionary failed user_id=%d name=%q err=%v", userID, name, err)
 		return nil, err
 	}
 
@@ -183,31 +190,55 @@ type GetUploadStatusRequest struct {
 
 // GetUploadStatusResponse 获取上传状态响应
 type GetUploadStatusResponse struct {
-	TaskID      string   `json:"task_id"`
-	Status      string   `json:"status"`
-	Progress    float64  `json:"progress"`
-	Total       int      `json:"total"`
-	Processed   int      `json:"processed"`
-	FailedWords []string `json:"failed_words"`
+	TaskID        string               `json:"task_id"`
+	Status        string               `json:"status"`
+	Progress      float64              `json:"progress"`
+	Total         int                  `json:"total"`
+	Processed     int                  `json:"processed"`
+	FailedWords   []string             `json:"failed_words"`
+	FailedDetails []UploadFailedDetail `json:"failed_details"`
+}
+
+type UploadFailedDetail struct {
+	Word   string `json:"word"`
+	Stage  string `json:"stage"`
+	Reason string `json:"reason"`
+	At     string `json:"at"`
 }
 
 // GetUploadStatus 获取上传任务状态
 func (s *DictionaryService) GetUploadStatus(ctx context.Context, req *GetUploadStatusRequest) (*GetUploadStatusResponse, error) {
+	s.log.WithContext(ctx).Infof("GetUploadStatus req: %+v", req)
 	userID, ok := authctx.UserIDFromContext(ctx)
 	if !ok || userID <= 0 {
 		return nil, biz.ErrUnauthorized
 	}
 	task, err := s.uc.GetUploadStatus(ctx, req.TaskID, userID)
 	if err != nil {
+		s.log.WithContext(ctx).Errorf("GetUploadStatus failed req=%+v user_id=%d err=%v", req, userID, err)
 		return nil, err
 	}
 
 	return &GetUploadStatusResponse{
-		TaskID:      task.ID,
-		Status:      task.Status,
-		Progress:    task.Progress(),
-		Total:       task.TotalWords,
-		Processed:   task.ProcessedWords,
-		FailedWords: task.FailedWords,
+		TaskID:        task.ID,
+		Status:        task.Status,
+		Progress:      task.Progress(),
+		Total:         task.TotalWords,
+		Processed:     task.ProcessedWords,
+		FailedWords:   task.FailedWords,
+		FailedDetails: toUploadFailedDetails(task.FailedDetails),
 	}, nil
+}
+
+func toUploadFailedDetails(details []entity.FailedDetail) []UploadFailedDetail {
+	result := make([]UploadFailedDetail, 0, len(details))
+	for _, detail := range details {
+		result = append(result, UploadFailedDetail{
+			Word:   detail.Word,
+			Stage:  detail.Stage,
+			Reason: detail.Reason,
+			At:     detail.At.Format("2006-01-02T15:04:05Z"),
+		})
+	}
+	return result
 }

@@ -17,7 +17,15 @@ export interface UploadTask {
   total?: number;
   processed?: number;
   failed_words?: string[];
+  failed_details?: UploadFailedDetail[];
   message?: string;
+}
+
+export interface UploadFailedDetail {
+  word: string;
+  stage: string;
+  reason: string;
+  at: string;
 }
 
 // Upload dictionary file

@@ -73,4 +73,6 @@ type UploadTaskRepo interface {
 	IncrementProcessed(ctx context.Context, id string, count int) error
 	// AddFailedWord 添加失败单词
 	AddFailedWord(ctx context.Context, id string, word string) error
+	// AddFailedWordWithReason 添加失败单词和失败原因
+	AddFailedWordWithReason(ctx context.Context, id, word, stage, reason string) error
 }

@@ -34,7 +34,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	greeterRepo := data.NewGreeterRepo(dataData, logger)
 	articleRepo := data.NewArticleRepo(dataData, logger)
 	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, articleRepo)
-	greeterService := service.NewGreeterService(greeterUsecase)
+	greeterService := service.NewGreeterService(greeterUsecase, logger)
 
 	// Dictionary 相关
 	dictionaryRepo := data.NewDictionaryRepo(dataData, logger)
@@ -51,7 +51,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 	userRepo := data.NewUserRepo(dataData, logger)
 	refreshTokenRepo := data.NewRefreshTokenRepo(dataData, logger)
 	authUseCase := biz.NewAuthUseCase(userRepo, refreshTokenRepo)
-	authService := service.NewAuthService(authUseCase)
+	authService := service.NewAuthService(authUseCase, logger)
 
 	grpcServer := server.NewGRPCServer(confServer, greeterService, logger)
 	httpServer := server.NewHTTPServer(confServer, greeterService, dictionaryService, learningService, authService, logger)
