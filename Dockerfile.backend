@@ -1,0 +1,26 @@
+FROM golang:1.26 AS builder
+
+# 复制整个项目（包括 api 和 backend）
+COPY . /src
+WORKDIR /src/backend
+
+# 构建，禁用 git 版本（使用默认值）
+RUN mkdir -p bin/ && go build -ldflags "-X main.Version=docker" -o ./bin/server ./internal/cmd/backend/
+
+FROM debian:stable-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		ca-certificates  \
+        netbase \
+        && rm -rf /var/lib/apt/lists/ \
+        && apt-get autoremove -y && apt-get autoclean -y
+
+COPY --from=builder /src/backend/bin/server /app/server
+
+WORKDIR /app
+
+EXPOSE 8000
+EXPOSE 9000
+VOLUME /data/conf
+
+CMD ["./server", "-conf", "/data/conf"]

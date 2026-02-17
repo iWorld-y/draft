@@ -1,6 +1,8 @@
 package server
 
 import (
+	stdhttp "net/http"
+
 	v1 "backend/api/helloworld/v1"
 	"backend/internal/conf"
 	"backend/internal/service"
@@ -10,12 +12,54 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/http"
 )
 
+// corsFilter CORS 过滤器
+func corsFilter() http.FilterFunc {
+	return func(h stdhttp.Handler) stdhttp.Handler {
+		return stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+			origin := r.Header.Get("Origin")
+
+			// 允许的源
+			allowedOrigins := []string{
+				"http://localhost:8123",
+				"http://127.0.0.1:8123",
+				"http://localhost:3000",
+				"http://localhost:5173",
+			}
+
+			isAllowed := false
+			for _, allowed := range allowedOrigins {
+				if origin == allowed || origin == "" {
+					isAllowed = true
+					break
+				}
+			}
+
+			if isAllowed && origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Origin, X-Requested-With")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Max-Age", "86400")
+			}
+
+			// 处理 OPTIONS 预检请求
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(200)
+				return
+			}
+
+			h.ServeHTTP(w, r)
+		})
+	}
+}
+
 // NewHTTPServer new an HTTP server.
 func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, dictSvc *service.DictionaryService, learnSvc *service.LearningService, logger log.Logger) *http.Server {
 	var opts = []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
 		),
+		http.Filter(corsFilter()),
 	}
 	if c.Http.Network != "" {
 		opts = append(opts, http.Network(c.Http.Network))
