@@ -1,130 +1,197 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import Dashboard from './pages/Dashboard';
+import DictionaryUpload from './pages/DictionaryUpload';
+import Learning from './pages/Learning';
+import Hello from './pages/Hello';
+import {
+  clearAuth,
+  fetchCurrentUser,
+  getCurrentUser,
+  logout,
+  type AuthUser,
+} from './services/auth';
+import './styles/global.css';
 
-interface User {
-  name: string;
-  imageUrl: string;
-  imageSize: number;
-}
+type Page = 'hello' | 'dashboard' | 'upload' | 'learn';
 
-const user: User = {
-  name: 'Hedy Lamarr',
-  imageUrl: 'https://i.imgur.com/yXOvdOSs.jpg',
-  imageSize: 90,
-};
+const App: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState<Page>('hello');
+  const [dictId, setDictId] = useState<number>(1);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-function Lissajous(): React.JSX.Element {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const getPageFromPath = (path: string): Page => {
+    if (path === '/hello') {
+      return 'hello';
+    }
+    if (path === '/upload') {
+      return 'upload';
+    }
+    if (path === '/learn') {
+      return 'learn';
+    }
+    return 'dashboard';
+  };
+
+  const guardPage = (targetPage: Page, currentUser: AuthUser | null): Page => {
+    if (!currentUser && targetPage !== 'hello') {
+      return 'hello';
+    }
+    if (currentUser && targetPage === 'hello') {
+      return 'dashboard';
+    }
+    return targetPage;
+  };
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const syncRouteFromLocation = () => {
+      const cachedUser = getCurrentUser();
+      setUser(cachedUser);
 
-    const cycles = 5;
-    const res = 0.001;
-    const size = 100;
-    const nframes = 64;
-    const delay = 80; // 8 * 10ms
-    const freq = Math.random() * 3.0;
-    let phase = 0.0;
-    let frame = 0;
-    let lastTime = 0;
-    let requestId: number;
+      const path = window.location.pathname;
+      const searchParams = new URLSearchParams(window.location.search);
+      const targetPage = getPageFromPath(path);
+      const finalPage = guardPage(targetPage, cachedUser);
 
-    const render = (time: number) => {
-      if (time - lastTime >= delay) {
-        lastTime = time;
-
-        // Clear canvas
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, 2 * size + 1, 2 * size + 1);
-
-        // Draw Lissajous
-        ctx.fillStyle = 'black';
-        for (let t = 0.0; t < cycles * 2 * Math.PI; t += res) {
-          const x = Math.sin(t);
-          const y = Math.sin(t * freq + phase);
-          // Set pixel (using fillRect as a proxy for SetColorIndex)
-          ctx.fillRect(size + x * size, size + y * size, 1, 1);
+      if (finalPage === 'learn') {
+        const id = searchParams.get('dictId');
+        if (id) {
+          setDictId(parseInt(id, 10));
         }
-
-        phase += 0.1;
-        frame = (frame + 1) % nframes;
       }
-      requestId = requestAnimationFrame(render);
+
+      setCurrentPage(finalPage);
+
+      if (finalPage !== targetPage) {
+        const redirectPath = finalPage === 'hello' ? '/hello' : '/';
+        window.history.replaceState({}, '', redirectPath);
+      }
     };
 
-    requestId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(requestId);
-  }, []);
-
-  return (
-    <div style={{ marginTop: '20px' }}>
-      <h3>Lissajous Animation</h3>
-      <canvas
-        ref={canvasRef}
-        width={201}
-        height={201}
-        style={{ border: '1px solid #ccc' }}
-      />
-    </div>
-  );
-}
-
-interface Article {
-  title: string;
-  content: string;
-}
-
-function ArticleList() {
-  const [articles, setArticles] = React.useState<Article[]>([]);
-
-  useEffect(() => {
-    fetch('/articles')
-      .then(res => res.json())
-      .then(data => {
-          if (data.articles) {
-              setArticles(data.articles);
-          }
+    syncRouteFromLocation();
+    fetchCurrentUser()
+      .then((freshUser) => {
+        setUser(freshUser);
       })
-      .catch(err => console.error(err));
+      .catch(() => {
+        clearAuth();
+        setUser(null);
+        setCurrentPage('hello');
+        window.history.replaceState({}, '', '/hello');
+      });
+    window.addEventListener('popstate', syncRouteFromLocation);
+    return () => window.removeEventListener('popstate', syncRouteFromLocation);
   }, []);
 
+  const navigateTo = (
+    page: Page,
+    params?: { dictId?: number },
+    replaceHistory = false,
+    userOverride?: AuthUser | null,
+  ) => {
+    const activeUser = userOverride === undefined ? user : userOverride;
+    const finalPage = guardPage(page, activeUser);
+
+    setCurrentPage(finalPage);
+    if (params?.dictId) {
+      setDictId(params.dictId);
+    }
+
+    // Update URL
+    let url = '/hello';
+    if (finalPage === 'dashboard') {
+      url = '/';
+    } else if (finalPage === 'upload') {
+      url = '/upload';
+    } else if (finalPage === 'learn') {
+      url = params?.dictId ? `/learn?dictId=${params.dictId}` : '/learn';
+    }
+
+    if (replaceHistory) {
+      window.history.replaceState({}, '', url);
+    } else {
+      window.history.pushState({}, '', url);
+    }
+  };
+
+  // Override window.location for navigation
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      
+      if (anchor) {
+        const href = anchor.getAttribute('href');
+        if (href && href.startsWith('/')) {
+          e.preventDefault();
+          if (href === '/hello') {
+            navigateTo('hello');
+          } else if (href === '/upload') {
+            navigateTo('upload');
+          } else if (href.startsWith('/learn')) {
+            const url = new URL(href, window.location.origin);
+            const dictId = url.searchParams.get('dictId');
+            navigateTo('learn', { dictId: dictId ? parseInt(dictId, 10) : 1 });
+          } else {
+            navigateTo('dashboard');
+          }
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [user]);
+
+  const handleLoginSuccess = (loggedInUser: AuthUser) => {
+    setUser(loggedInUser);
+    navigateTo('dashboard', undefined, true, loggedInUser);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+    navigateTo('hello', undefined, true, null);
+  };
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'hello':
+        return <Hello onLoginSuccess={handleLoginSuccess} />;
+      case 'upload':
+        return <DictionaryUpload />;
+      case 'learn':
+        return <Learning dictId={dictId} />;
+      case 'dashboard':
+      default:
+        return <Dashboard />;
+    }
+  };
+
   return (
-    <div style={{ marginTop: '20px', borderTop: '1px solid #ccc', paddingTop: '20px' }}>
-      <h3>Article List</h3>
-      {articles.length === 0 ? (
-        <p>No articles found.</p>
-      ) : (
-        <ul style={{ listStyleType: 'none', padding: 0 }}>
-          {articles.map((article, index) => (
-            <li key={index} style={{ marginBottom: '15px', border: '1px solid #eee', padding: '10px' }}>
-              <h4 style={{ margin: '0 0 5px 0' }}>{article.title}</h4>
-              <pre style={{ whiteSpace: 'pre-wrap', backgroundColor: '#f5f5f5', padding: '5px' }}>{article.content}</pre>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="app">
+      {user ? (
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            position: 'fixed',
+            right: '16px',
+            top: '16px',
+            zIndex: 100,
+            border: 'none',
+            borderRadius: '10px',
+            padding: '8px 12px',
+            background: '#1f2937',
+            color: '#fff',
+            cursor: 'pointer',
+          }}
+        >
+          退出登录（{user.username}）
+        </button>
+      ) : null}
+      {renderPage()}
     </div>
   );
-}
+};
 
-export default function Profile(): React.JSX.Element {
-  return (
-    <>
-      <h1>{user.name}</h1>
-      <img
-        className="avatar"
-        src={user.imageUrl}
-        alt={'Photo of ' + user.name}
-        style={{
-          width: user.imageSize,
-          height: user.imageSize
-        }}
-      />
-      <Lissajous />
-      <ArticleList />
-    </>
-  );
-}
+export default App;

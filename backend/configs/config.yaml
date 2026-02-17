@@ -1,15 +1,19 @@
 server:
   http:
-    addr: 0.0.0.0:8124
-    timeout: 1s
+    addr: 0.0.0.0:8000
+    timeout: 10s
   grpc:
-    addr: 0.0.0.0:8125
-    timeout: 1s
+    addr: 0.0.0.0:9000
+    timeout: 10s
 data:
   database:
-    driver: mysql
-    source: root:root@tcp(127.0.0.1:3306)/test?parseTime=True&loc=Local
+    driver: postgres
+    source: postgres://vocabulary:vocabulary123@postgres:5432/vocabulary?sslmode=disable
   redis:
-    addr: 127.0.0.1:6379
+    addr: redis:6379
     read_timeout: 0.2s
     write_timeout: 0.2s
+translator:
+  youdao:
+    app_key: "your_app_key"
+    app_secret: "your_app_secret"

@@ -3,7 +3,7 @@ FROM golang:1.26 AS builder
 COPY . /src
 WORKDIR /src
 
-RUN GOPROXY=https://goproxy.cn make build
+RUN mkdir -p bin/ && go build -ldflags "-X main.Version=$(git describe --tags --always)" -o ./bin/server ./internal/cmd/backend/
 
 FROM debian:stable-slim
 
@@ -13,12 +13,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         && rm -rf /var/lib/apt/lists/ \
         && apt-get autoremove -y && apt-get autoclean -y
 
-COPY --from=builder /src/bin /app
+COPY --from=builder /src/bin/server /app/server
 
 WORKDIR /app
 
-EXPOSE 8124
-EXPOSE 8125
+EXPOSE 8000
+EXPOSE 9000
 VOLUME /data/conf
 
 CMD ["./server", "-conf", "/data/conf"]

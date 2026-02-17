@@ -1,0 +1,7 @@
+FROM golang:1.26
+
+WORKDIR /workspace/backend
+
+RUN go install github.com/air-verse/air@v1.61.7
+
+CMD ["air", "-c", ".air.toml"]

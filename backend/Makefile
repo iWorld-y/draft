@@ -42,7 +42,7 @@ build:
 
 # 执行 wire 依赖注入
 wire:
-	cd cmd/backend && wire
+	cd internal/cmd/backend && wire
 
 .PHONY: generate
 # 执行 go generate 并整理 mod 文件
