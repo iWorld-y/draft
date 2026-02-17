@@ -61,8 +61,9 @@ func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, dictSvc *ser
 	var opts = []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
+			requestLogMiddleware(logger),
 		),
-		http.Filter(corsFilter()),
+		http.Filter(requestContextFilter(authSvc), corsFilter()),
 	}
 	if c.Http.Network != "" {
 		opts = append(opts, http.Network(c.Http.Network))
@@ -116,6 +117,10 @@ func clearRefreshCookie(ctx http.Context) {
 
 func withAuth(authSvc *service.AuthService, handler func(ctx http.Context, userID int64) error) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
+		if userID, ok := authctx.UserIDFromContext(ctx); ok && userID > 0 {
+			return handler(ctx, userID)
+		}
+
 		authz := strings.TrimSpace(ctx.Request().Header.Get("Authorization"))
 		if !strings.HasPrefix(authz, "Bearer ") {
 			return ctx.JSON(401, map[string]interface{}{"code": 401, "message": "未授权"})
