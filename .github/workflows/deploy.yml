@@ -23,6 +23,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # 允许推送镜像
 
     steps:
       - name: Checkout code
