@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: '部署环境'
+        description: "部署环境"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - staging
           - production
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 env:
   REGISTRY: ghcr.io
@@ -21,19 +21,17 @@ env:
   FRONTEND_IMAGE: ${{ github.repository }}/frontend
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'production' }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set environment variables
+      - name: Set version
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            echo "DEPLOY_VERSION=$VERSION" >> $GITHUB_ENV
+            echo "DEPLOY_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           else
             echo "DEPLOY_VERSION=latest" >> $GITHUB_ENV
           fi
@@ -45,53 +43,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ==========================================
-      # 以下为示例部署步骤，请根据实际情况修改
-      # ==========================================
-      
-      # 方案 1: SSH 部署到服务器（需要配置 SSH 密钥）
-      # - name: Deploy via SSH
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ secrets.SSH_HOST }}
-      #     username: ${{ secrets.SSH_USERNAME }}
-      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
-      #     script: |
-      #       cd /path/to/app
-      #       docker-compose pull
-      #       docker-compose up -d
+      # 构建并推送后端镜像
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend # 改成你后端代码的目录
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
 
-      # 方案 2: 使用 Docker Compose 部署
-      # - name: Copy compose file to server
-      #   uses: appleboy/scp-action@v0.1.7
-      #   with:
-      #     host: ${{ secrets.SSH_HOST }}
-      #     username: ${{ secrets.SSH_USERNAME }}
-      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
-      #     source: "docker-compose.yml"
-      #     target: "/path/to/app/"
+      # 构建并推送前端镜像
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend # 改成你前端代码的目录
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
 
-      # 方案 3: Kubernetes 部署
-      # - name: Setup kubectl
-      #   uses: azure/setup-kubectl@v4
-      #   with:
-      #     version: 'v1.29.0'
-      #
-      # - name: Configure kubeconfig
-      #   run: |
-      #     echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
-      #     export KUBECONFIG=kubeconfig
-      #
-      # - name: Deploy to Kubernetes
-      #   run: |
-      #     kubectl set image deployment/backend backend=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
-      #     kubectl set image deployment/frontend frontend=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
-      #     kubectl rollout status deployment/backend
-      #     kubectl rollout status deployment/frontend
+  deploy:
+    needs: build-and-push # 等镜像构建完再部署
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: REGISTRY,BACKEND_IMAGE,FRONTEND_IMAGE,DEPLOY_VERSION
+          script: |
+            # 登录镜像仓库（首次需要在服务器上配置好 token）
+            docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
+            docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
+
+            # 用 docker compose 重启（推荐）
+            cd /path/to/your/app
+            DEPLOY_VERSION=${{ env.DEPLOY_VERSION }} docker compose up -d
 
       - name: Deployment Summary
         run: |
           echo "🚀 部署完成！"
-          echo "后端镜像: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
-          echo "前端镜像: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
+          echo "后端: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
+          echo "前端: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
           echo "环境: ${{ github.event.inputs.environment || 'production' }}"
