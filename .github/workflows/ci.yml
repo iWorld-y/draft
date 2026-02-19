@@ -60,6 +60,9 @@ jobs:
           go mod download
           buf dep update
 
+      - name: Prepare proto output directory
+        run: mkdir -p api
+
       - name: Generate API code
         working-directory: backend
         run: make api
