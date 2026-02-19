@@ -25,6 +25,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Normalize backend image name
+        run: |
+          echo "BACKEND_IMAGE_LC=$(echo '${{ env.BACKEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -92,7 +96,7 @@ jobs:
 
       - name: Build Docker image
         working-directory: backend
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} .
+        run: docker build -t ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ github.sha }} .
 
       - name: Login to Container Registry
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
@@ -105,15 +109,15 @@ jobs:
       - name: Push backend image
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
         run: |
-          docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
-          docker push ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-          docker push ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+          docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:latest
           
           # Push tagged version
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
-            docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${VERSION}
-            docker push ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${VERSION}
+            docker tag ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${VERSION}
+            docker push ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${VERSION}
           fi
 
   # ==========================================
@@ -124,6 +128,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Normalize frontend image name
+        run: |
+          echo "FRONTEND_IMAGE_LC=$(echo '${{ env.FRONTEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -163,7 +171,7 @@ jobs:
 
       - name: Build Docker image
         working-directory: frontend
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} .
+        run: docker build -t ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ github.sha }} .
 
       - name: Login to Container Registry
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
@@ -176,15 +184,15 @@ jobs:
       - name: Push frontend image
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
         run: |
-          docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
-          docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-          docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+          docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:latest
           
           # Push tagged version
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
-            docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${VERSION}
-            docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${VERSION}
+            docker tag ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${VERSION}
+            docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${VERSION}
           fi
 
   # ==========================================

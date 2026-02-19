@@ -28,6 +28,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Normalize image names
+        run: |
+          echo "BACKEND_IMAGE_LC=$(echo '${{ env.BACKEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE_LC=$(echo '${{ env.FRONTEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Set version
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
@@ -49,7 +54,7 @@ jobs:
         with:
           context: ./backend # 改成你后端代码的目录
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
+          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }}
 
       # 构建并推送前端镜像
       - name: Build and push frontend
@@ -57,7 +62,7 @@ jobs:
         with:
           context: ./frontend # 改成你前端代码的目录
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
+          tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }}
 
   deploy:
     needs: build-and-push # 等镜像构建完再部署
@@ -65,17 +70,22 @@ jobs:
     environment: ${{ github.event.inputs.environment || 'production' }}
 
     steps:
+      - name: Normalize image names
+        run: |
+          echo "BACKEND_IMAGE_LC=$(echo '${{ env.BACKEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE_LC=$(echo '${{ env.FRONTEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: REGISTRY,BACKEND_IMAGE,FRONTEND_IMAGE,DEPLOY_VERSION
+          envs: REGISTRY,BACKEND_IMAGE_LC,FRONTEND_IMAGE_LC,DEPLOY_VERSION
           script: |
             # 登录镜像仓库（首次需要在服务器上配置好 token）
-            docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
-            docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}
+            docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }}
+            docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }}
 
             # 用 docker compose 重启（推荐）
             cd /path/to/your/app
@@ -84,6 +94,6 @@ jobs:
       - name: Deployment Summary
         run: |
           echo "🚀 部署完成！"
-          echo "后端: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
-          echo "前端: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ env.DEPLOY_VERSION }}"
+          echo "后端: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }}"
+          echo "前端: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }}"
           echo "环境: ${{ github.event.inputs.environment || 'production' }}"
