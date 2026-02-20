@@ -10,10 +10,7 @@ data:
     driver: postgres
     source: postgres://vocabulary:vocabulary123@postgres:5432/vocabulary?sslmode=disable
   redis:
+    network: tcp
     addr: redis:6379
     read_timeout: 0.2s
     write_timeout: 0.2s
-translator:
-  youdao:
-    app_key: "your_app_key"
-    app_secret: "your_app_secret"

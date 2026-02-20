@@ -1,0 +1,47 @@
+# 生产环境配置 - 使用预构建的镜像
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: vocabulary-postgres
+    environment:
+      POSTGRES_USER: vocabulary
+      POSTGRES_PASSWORD: vocabulary123
+      POSTGRES_DB: vocabulary
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/docs/migrations:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vocabulary -d vocabulary"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: kratos-backend
+    ports:
+      - "18000:8000"
+      - "19000:9000"
+    volumes:
+      - ./backend/configs:/data/conf
+    environment:
+      - DATABASE_URL=postgres://vocabulary:vocabulary123@postgres:5432/vocabulary?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  frontend:
+    image: ${FRONTEND_IMAGE}
+    container_name: vite-frontend
+    ports:
+      - "18123:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  postgres_data:
