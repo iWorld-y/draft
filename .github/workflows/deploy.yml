@@ -104,6 +104,14 @@ jobs:
           echo "BACKEND_IMAGE_LC=$(echo '${{ env.BACKEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
           echo "FRONTEND_IMAGE_LC=$(echo '${{ env.FRONTEND_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
+      - name: Set version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "DEPLOY_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_VERSION=latest" >> $GITHUB_ENV
+          fi
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
