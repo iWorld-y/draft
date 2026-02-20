@@ -16,6 +16,12 @@ RUN pnpm install --frozen-lockfile
 # 复制所有源代码
 COPY . .
 
+# 接收构建参数
+ARG VITE_API_BASE_URL
+
+# 如果传入了 VITE_API_BASE_URL，则写入 .env.production 文件，覆盖默认配置
+RUN if [ -n "$VITE_API_BASE_URL" ]; then echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" > .env.production; fi
+
 # 执行构建命令
 RUN pnpm run build
 

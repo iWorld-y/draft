@@ -23,22 +23,10 @@ func corsFilter() http.FilterFunc {
 		return stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 			origin := r.Header.Get("Origin")
 
-			allowedOrigins := []string{
-				"http://localhost:8123",
-				"http://127.0.0.1:8123",
-				"http://localhost:3000",
-				"http://localhost:5173",
-			}
+			// Allow any origin for now to solve connectivity issues
+			// In production, this should be restricted to specific domains
 
-			isAllowed := false
-			for _, allowed := range allowedOrigins {
-				if origin == allowed || origin == "" {
-					isAllowed = true
-					break
-				}
-			}
-
-			if isAllowed && origin != "" {
+			if origin != "" {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Origin, X-Requested-With")

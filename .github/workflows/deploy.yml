@@ -125,8 +125,8 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }}
 
             # 用 docker compose 重启（推荐）
-            cd /path/to/your/app
-            DEPLOY_VERSION=${{ env.DEPLOY_VERSION }} docker compose up -d
+            cd /home/ubuntu/project/draft
+            BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }} FRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_LC }}:${{ env.DEPLOY_VERSION }} docker compose -f docker-compose.prod.yml up -d
 
       - name: Deployment Summary
         run: |
